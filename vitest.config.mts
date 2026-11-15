@@ -14,6 +14,7 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
     // Loads .env.local etc. Tests must only ever use the *_TEST database URLs.
-    env: loadEnv("test", process.cwd(), ""),
+    // TZ is deliberately NOT India: proves the time helpers never depend on the machine's timezone.
+    env: { ...loadEnv("test", process.cwd(), ""), TZ: "America/New_York" },
   },
 });
