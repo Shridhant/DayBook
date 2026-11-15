@@ -137,6 +137,28 @@ CREATE TABLE public.customers (
 
 
 --
+-- Name: email_outbox; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.email_outbox (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    dedupe_key text NOT NULL,
+    to_email text NOT NULL,
+    subject text NOT NULL,
+    html text NOT NULL,
+    text_body text NOT NULL,
+    ics text,
+    status text DEFAULT 'pending'::text NOT NULL,
+    attempts smallint DEFAULT 0 NOT NULL,
+    last_error text,
+    next_attempt_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    sent_at timestamp with time zone,
+    CONSTRAINT email_outbox_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'sending'::text, 'sent'::text, 'failed'::text, 'expired'::text])))
+);
+
+
+--
 -- Name: instagram_posts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -154,6 +176,33 @@ CREATE TABLE public.instagram_posts (
     CONSTRAINT instagram_posts_kind_check CHECK ((kind = ANY (ARRAY['reel'::text, 'post'::text]))),
     CONSTRAINT instagram_posts_placement_check CHECK ((placement = ANY (ARRAY['hero'::text, 'portfolio'::text, 'reviews'::text]))),
     CONSTRAINT instagram_posts_url_check CHECK ((url ~ '^https://www\.instagram\.com/(p|reel)/[A-Za-z0-9_-]+/?$'::text))
+);
+
+
+--
+-- Name: notification_reads; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notification_reads (
+    user_id uuid NOT NULL,
+    notification_id uuid NOT NULL,
+    read_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: notifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notifications (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    type text NOT NULL,
+    title text NOT NULL,
+    body text,
+    booking_id uuid,
+    dedupe_key text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT notifications_type_check CHECK ((type = ANY (ARRAY['booking_confirmed'::text, 'payment_review'::text, 'booking_cancelled'::text])))
 );
 
 
@@ -525,6 +574,22 @@ ALTER TABLE ONLY public.customers
 
 
 --
+-- Name: email_outbox email_outbox_dedupe_key_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_outbox
+    ADD CONSTRAINT email_outbox_dedupe_key_key UNIQUE (dedupe_key);
+
+
+--
+-- Name: email_outbox email_outbox_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_outbox
+    ADD CONSTRAINT email_outbox_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: instagram_posts instagram_posts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -538,6 +603,30 @@ ALTER TABLE ONLY public.instagram_posts
 
 ALTER TABLE ONLY public.instagram_posts
     ADD CONSTRAINT instagram_posts_url_key UNIQUE (url);
+
+
+--
+-- Name: notification_reads notification_reads_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notification_reads
+    ADD CONSTRAINT notification_reads_pkey PRIMARY KEY (user_id, notification_id);
+
+
+--
+-- Name: notifications notifications_dedupe_key_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_dedupe_key_key UNIQUE (dedupe_key);
+
+
+--
+-- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
 
 
 --
@@ -823,6 +912,20 @@ CREATE INDEX bookings_starts_at_idx ON public.bookings USING btree (starts_at);
 
 
 --
+-- Name: email_outbox_due_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX email_outbox_due_idx ON public.email_outbox USING btree (next_attempt_at) WHERE (status = ANY (ARRAY['pending'::text, 'sending'::text]));
+
+
+--
+-- Name: notifications_recent_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX notifications_recent_idx ON public.notifications USING btree (created_at DESC);
+
+
+--
 -- Name: payments_booking_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -996,6 +1099,30 @@ ALTER TABLE ONLY public.bookings
 
 
 --
+-- Name: notification_reads notification_reads_notification_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notification_reads
+    ADD CONSTRAINT notification_reads_notification_id_fkey FOREIGN KEY (notification_id) REFERENCES public.notifications(id) ON DELETE CASCADE;
+
+
+--
+-- Name: notification_reads notification_reads_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notification_reads
+    ADD CONSTRAINT notification_reads_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: notifications notifications_booking_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id) ON DELETE SET NULL;
+
+
+--
 -- Name: payments payments_booking_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1083,4 +1210,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261115120100'),
     ('20261115120200'),
     ('20261115120300'),
-    ('20261116120000');
+    ('20261116120000'),
+    ('20261117120000');

@@ -213,6 +213,11 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 6. A payment captured for an expired hold must not silently vanish: if the slot is still free, confirm it; otherwise flag it for owner review/refund.
 7. Never log full payment payloads containing customer PII to stdout in production.
 
+### Notifications and email
+- Booking events (`onBookingConfirmed`, `onPaymentNeedsReview`, `onBookingCancelled` in `server/notifications.ts`) run **inside the same transaction** as the change and write an in-app notification plus queued emails (`email_outbox`). Every row has a `dedupe_key`, so webhook retries never duplicate.
+- Emails are sent by `server/email.ts` over SMTP: right after the response (`sendQueuedEmailsSoon()` via `after()`), and retried with backoff by `GET /api/cron/email` (Bearer `CRON_SECRET`, run every minute from the VPS crontab). Mail older than a day expires instead of arriving late. **Sending must never block or fail a booking.**
+- Only online bookings notify; front-desk bookings were made in the admin. Customer emails go out only if they gave an email, with an .ics attached.
+
 ### Customers
 - Phone is the identity. Normalise to 10 digits (strip `+91`, `91`, leading `0`), must match `^[6-9]\d{9}$`.
 
@@ -276,7 +281,7 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 ## 12. Testing
 
 - Vitest unit tests are **required** for: availability, booking-amount calculation, pricing, phone normalisation, IST time helpers, Razorpay signature verification, booking status transitions.
-- Tests that need Postgres use a separate test database (`DATABASE_URL_TEST`), never the dev or prod one.
+- Tests that need Postgres use a separate test database (`DATABASE_URL_TEST`), never the dev or prod one. Test files run serially (`fileParallelism: false`) because they share global tables; tests that create bookings clean up their notifications/emails with `cleanupBookingEvents()`.
 - Fix the code, not the test, unless the test is wrong, and say so.
 
 ---

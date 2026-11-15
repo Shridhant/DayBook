@@ -28,7 +28,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/admin/book
   }
 
   try {
-    const booking = await applyBookingAction({ bookingId: id, ...parsed.data });
+    const booking = await applyBookingAction({ bookingId: id, ...parsed.data, actorName: user.name });
     return Response.json({ booking });
   } catch (error) {
     if (error instanceof AdminBookingError) {

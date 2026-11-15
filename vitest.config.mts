@@ -18,6 +18,9 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
     setupFiles: ["tests/setup.ts"],
+    // Test files share one database with global tables (settings, notifications, email outbox),
+    // so they run one after another to stay deterministic.
+    fileParallelism: false,
     // Loads .env.local etc. Tests must only ever use the *_TEST database URLs.
     // TZ is deliberately NOT India: proves the time helpers never depend on the machine's timezone.
     // DATABASE_URL is swapped for the test database so code using lib/db.ts can never reach dev data.
@@ -31,6 +34,12 @@ export default defineConfig({
       RAZORPAY_WEBHOOK_SECRET: "test_webhook_secret_123",
       // Uploads in tests go to a throwaway folder, never the real storage.
       UPLOAD_DIR: join(tmpdir(), "daybook-test-uploads"),
+      // Email in tests: never configured (nothing can be sent), with known owner addresses.
+      SMTP_HOST: "",
+      SMTP_USER: "",
+      SMTP_PASS: "",
+      EMAIL_FROM: "",
+      OWNER_NOTIFY_EMAILS: "owner-a@daybook.test, owner-b@daybook.test",
     },
   },
 });

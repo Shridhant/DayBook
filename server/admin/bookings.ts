@@ -6,6 +6,7 @@ import { getAvailability } from "../availability-query";
 import { insertBooking, loadServicesInOrder } from "../booking-insert";
 import { nextStatus, type AdminAction } from "@/lib/booking-status";
 import { totalPrice } from "@/lib/pricing";
+import { onBookingCancelled } from "../notifications";
 
 /**
  * Admin booking operations: day schedule, bookings list, status actions, walk-in/phone bookings.
@@ -237,7 +238,13 @@ export class AdminBookingError extends Error {
   }
 }
 
-export async function applyBookingAction(params: { bookingId: string; action: AdminAction; reason?: string }): Promise<AdminBooking> {
+export async function applyBookingAction(params: {
+  bookingId: string;
+  action: AdminAction;
+  reason?: string;
+  /** Who did it, for the in-app notification. */
+  actorName?: string;
+}): Promise<AdminBooking> {
   const [current] = await sql<{ status: BookingStatus }[]>`select status from bookings where id = ${params.bookingId}`;
   if (!current) throw new AdminBookingError("not_found", "Booking not found.");
 
@@ -245,15 +252,18 @@ export async function applyBookingAction(params: { bookingId: string; action: Ad
   if (!next) throw new AdminBookingError("not_allowed", `A ${current.status.replace("_", "-")} booking can't be changed that way.`);
 
   // Conditional on the status we read, so two people acting at once can't both win.
-  const [updated] = await sql<{ id: string }[]>`
-    update bookings set
-      status = ${next},
-      hold_expires_at = null,
-      cancelled_at = ${next === "cancelled" ? sql`now()` : null},
-      cancel_reason = ${next === "cancelled" ? params.reason?.trim() || null : null}
-    where id = ${params.bookingId} and status = ${current.status}
-    returning id`;
-  if (!updated) throw new AdminBookingError("conflict", "This booking just changed. Refresh and try again.");
+  await sql.begin(async (tx) => {
+    const [updated] = await tx<{ id: string }[]>`
+      update bookings set
+        status = ${next},
+        hold_expires_at = null,
+        cancelled_at = ${next === "cancelled" ? tx`now()` : null},
+        cancel_reason = ${next === "cancelled" ? params.reason?.trim() || null : null}
+      where id = ${params.bookingId} and status = ${current.status}
+      returning id`;
+    if (!updated) throw new AdminBookingError("conflict", "This booking just changed. Refresh and try again.");
+    if (next === "cancelled") await onBookingCancelled(tx, params.bookingId, params.actorName ?? "the front desk");
+  });
 
   const booking = await getAdminBooking(params.bookingId);
   if (!booking) throw new AdminBookingError("not_found", "Booking not found.");

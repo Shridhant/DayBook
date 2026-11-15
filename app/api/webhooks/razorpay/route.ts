@@ -1,3 +1,4 @@
+import { sendQueuedEmailsSoon } from "@/server/email";
 import { handleRazorpayWebhook } from "@/server/razorpay-webhook";
 
 /**
@@ -14,6 +15,7 @@ export async function POST(request: Request) {
     request.headers.get("x-razorpay-event-id"),
   );
 
+  if (result.status === "processed") sendQueuedEmailsSoon();
   switch (result.status) {
     case "processed":
     case "duplicate":

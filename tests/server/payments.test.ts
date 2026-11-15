@@ -6,7 +6,7 @@ import { sql } from "@/lib/db";
 import type { RazorpayPayment } from "@/lib/razorpay";
 import { addDays, istToday } from "@/lib/time";
 import { PaymentError, recordPayment, settlePayment, startPayment } from "@/server/payments";
-import { testSql } from "../helpers/test-db";
+import { cleanupBookingEvents, testSql } from "../helpers/test-db";
 
 /**
  * Payments against the TEST database, with Razorpay's HTTP API stubbed (no network).
@@ -33,6 +33,8 @@ beforeAll(async () => {
 afterEach(() => vi.unstubAllGlobals());
 
 afterAll(async () => {
+  const booked = await testSql<{ id: string }[]>`select id from bookings where customer_id = ${customerId}`;
+  await cleanupBookingEvents(booked.map((b) => b.id));
   await testSql`delete from payments where booking_id in (select id from bookings where customer_id = ${customerId})`;
   await testSql`delete from bookings where customer_id = ${customerId}`;
   await testSql`delete from customers where id = ${customerId}`;

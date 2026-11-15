@@ -26,6 +26,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PILL_SPRING } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { NotificationBell, NotificationsProvider } from "./notification-bell";
 import { SignOutButton } from "./sign-out-button";
 import { ThemeToggle } from "./theme";
 
@@ -120,17 +121,18 @@ function NavList({ role, onNavigate }: { role: string; onNavigate?: () => void }
   );
 }
 
-function SidebarBody({ user, brand, onNavigate }: { user: ShellUser; brand: string; onNavigate?: () => void }) {
+function SidebarBody({ user, brand, onNavigate, showBell = true }: { user: ShellUser; brand: string; onNavigate?: () => void; showBell?: boolean }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 shrink-0 items-center gap-2.5 px-[14px]">
         <span className="flex size-7 items-center justify-center rounded-lg bg-ink text-[13px] font-semibold text-surface">
           {brand.slice(0, 1)}
         </span>
-        <div className="min-w-0 leading-tight">
+        <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-[13px] font-semibold">{brand}</p>
           <p className="truncate text-[11px] text-muted">Admin</p>
         </div>
+        {showBell && <NotificationBell />}
       </div>
       <nav aria-label="Admin" className="flex-1 overflow-y-auto px-2 py-2">
         <NavList role={user.role} onNavigate={onNavigate} />
@@ -163,6 +165,7 @@ export function AdminShell({ user, brand, children }: { user: ShellUser; brand: 
   const [menuOpen, setMenuOpen] = useState(false);
   return (
     <TooltipProvider>
+      <NotificationsProvider>
       <div className="min-h-dvh lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="sticky top-0 hidden h-dvh border-r border-line bg-canvas lg:block">
           <SidebarBody user={user} brand={brand} />
@@ -179,15 +182,17 @@ export function AdminShell({ user, brand, children }: { user: ShellUser; brand: 
               <SheetContent side="left" title="Menu" hideTitle className="bg-canvas">
                 <div className="-mx-4 h-full">
                   {/* Close the drawer only when a page link is chosen, not on theme/sign-out taps. */}
-                  <SidebarBody user={user} brand={brand} onNavigate={() => setMenuOpen(false)} />
+                  <SidebarBody user={user} brand={brand} onNavigate={() => setMenuOpen(false)} showBell={false} />
                 </div>
               </SheetContent>
             </Sheet>
-            <span className="text-[13px] font-semibold">{brand}</span>
+            <span className="flex-1 text-[13px] font-semibold">{brand}</span>
+            <NotificationBell />
           </div>
           <div className="min-w-0 flex-1">{children}</div>
         </div>
       </div>
+      </NotificationsProvider>
     </TooltipProvider>
   );
 }

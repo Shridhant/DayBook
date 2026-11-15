@@ -19,6 +19,20 @@ const schema = z.object({
   RAZORPAY_WEBHOOK_SECRET: optional(z.string().min(8)),
   // Uploaded photos live here on the VPS disk (AGENTS.md §9). Include it in backups.
   UPLOAD_DIR: optional(z.string().min(1)).transform((v) => v ?? "./storage/uploads"),
+  // Email over SMTP (Hostinger mail, Gmail app password, …). Optional: without it, emails queue
+  // in email_outbox and expire after a day instead of being sent.
+  SMTP_HOST: optional(z.string().min(1)),
+  SMTP_PORT: optional(z.coerce.number().int().positive()).transform((v) => v ?? 587),
+  SMTP_USER: optional(z.string().min(1)),
+  SMTP_PASS: optional(z.string().min(1)),
+  /** e.g. "Daybook <bookings@yoursalon.in>". Must be an address the SMTP account may send from. */
+  EMAIL_FROM: optional(z.string().min(3)),
+  /** Comma-separated owner addresses for booking alerts. */
+  OWNER_NOTIFY_EMAILS: optional(z.string()).transform((v) =>
+    (v ?? "").split(",").map((e) => e.trim().toLowerCase()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)),
+  ),
+  /** Shared secret for the email retry cron (GET /api/cron/email). Unset = endpoint disabled. */
+  CRON_SECRET: optional(z.string().min(16)),
   // Signs admin session cookies. Required in production (checked below).
   BETTER_AUTH_SECRET: optional(z.string().min(32, "Use at least 32 characters (openssl rand -base64 32)")),
 });

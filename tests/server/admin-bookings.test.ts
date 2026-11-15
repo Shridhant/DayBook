@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "@/lib/db";
 import { addDays, istToday, timeToMinutes, weekdayOf } from "@/lib/time";
 import { applyBookingAction, createAdminBooking, getDaySchedule, listBookings } from "@/server/admin/bookings";
-import { testSql } from "../helpers/test-db";
+import { cleanupBookingEvents, testSql } from "../helpers/test-db";
 
 /** Admin booking operations against the TEST database. Uses today+6 (its own weekday). */
 
@@ -26,6 +26,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  const booked = await testSql<{ id: string }[]>`
+    select id from bookings where customer_id in (select id from customers where phone in ${testSql(PHONES)})`;
+  await cleanupBookingEvents(booked.map((b) => b.id));
   await testSql`delete from bookings where customer_id in (select id from customers where phone in ${testSql(PHONES)})`;
   await testSql`delete from customers where phone in ${testSql(PHONES)}`;
   await testSql`delete from staff where id = ${ids.a}`;

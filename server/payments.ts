@@ -1,6 +1,7 @@
 import "server-only";
 import postgres from "postgres";
 import { sql } from "@/lib/db";
+import { formatINR } from "@/lib/money";
 import { toE164 } from "@/lib/phone";
 import {
   capturePayment,
@@ -10,6 +11,7 @@ import {
   RazorpayApiError,
   type RazorpayPayment,
 } from "@/lib/razorpay";
+import { onBookingConfirmed, onPaymentNeedsReview } from "./notifications";
 
 /**
  * Payments (AGENTS.md §7 "Payments"). Two entry points confirm bookings:
@@ -53,11 +55,14 @@ export async function startPayment(bookingId: string): Promise<PaymentStart> {
 
   // Owner set a ₹0 booking amount: nothing to pay online, confirm straight away.
   if (booking.amount_due_now_paise === 0) {
-    const [row] = await sql`
-      update bookings set status = 'confirmed', hold_expires_at = null
-      where id = ${booking.id} and status = 'pending' and hold_expires_at > now()
-      returning id`;
-    if (!row) throw new PaymentError("hold_expired", "Your slot hold has expired. Please pick a time again.");
+    await sql.begin(async (tx) => {
+      const [row] = await tx`
+        update bookings set status = 'confirmed', hold_expires_at = null
+        where id = ${booking.id} and status = 'pending' and hold_expires_at > now()
+        returning id`;
+      if (!row) throw new PaymentError("hold_expired", "Your slot hold has expired. Please pick a time again.");
+      await onBookingConfirmed(tx, booking.id);
+    });
     return { kind: "confirmed", code: booking.code };
   }
 
@@ -138,6 +143,12 @@ export async function recordPayment(payment: RazorpayPayment): Promise<{ outcome
 
     if (payment.amount !== row.amount_paise || payment.currency !== "INR") {
       await tx`update payments set needs_review = true where id = ${row.id}`;
+      await onPaymentNeedsReview(
+        tx,
+        row.booking_id,
+        payment.id,
+        `The amount paid (${formatINR(payment.amount)}) doesn't match the booking amount (${formatINR(row.amount_paise)}). The booking was not confirmed.`,
+      );
       return result("needs_review");
     }
 
@@ -151,6 +162,7 @@ export async function recordPayment(payment: RazorpayPayment): Promise<{ outcome
       try {
         await tx.savepoint((sp) => sp`
           update bookings set status = 'confirmed', hold_expires_at = null where id = ${row.booking_id}`);
+        await onBookingConfirmed(tx, row.booking_id);
         return result("confirmed");
       } catch (error) {
         if (!(error instanceof postgres.PostgresError && error.code === BLOCKED_BY_OTHER_BOOKING)) throw error;
@@ -159,6 +171,14 @@ export async function recordPayment(payment: RazorpayPayment): Promise<{ outcome
 
     // Paid, but cancelled or the slot is gone: keep the money visible for the owner to refund.
     await tx`update payments set needs_review = true where id = ${row.id}`;
+    await onPaymentNeedsReview(
+      tx,
+      row.booking_id,
+      payment.id,
+      booking.status === "cancelled"
+        ? "A payment arrived for a booking that was already cancelled. Refund it from the Razorpay dashboard."
+        : "The customer paid after their hold expired and someone else took the slot. Contact them to rebook or refund.",
+    );
     return result("needs_review");
   });
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { RazorpayApiError, RazorpayNotConfiguredError } from "@/lib/razorpay";
+import { sendQueuedEmailsSoon } from "@/server/email";
 import { PaymentError, startPayment } from "@/server/payments";
 
 /**
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
   }
   try {
     const start = await startPayment(parsed.data.bookingId);
+    if (start.kind === "confirmed") sendQueuedEmailsSoon(); // ₹0 bookings confirm here
     return Response.json(start, { headers: noStore });
   } catch (error) {
     if (error instanceof PaymentError) {

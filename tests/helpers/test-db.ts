@@ -34,3 +34,12 @@ export async function errorCode(tx: TransactionSql, run: (sp: TransactionSql) =>
     return (e as { code?: string }).code ?? "unknown";
   }
 }
+
+/** Removes notifications and queued emails created for these bookings (booking events have side effects). */
+export async function cleanupBookingEvents(bookingIds: string[]) {
+  if (!bookingIds.length) return;
+  await testSql`delete from notifications where booking_id in ${testSql(bookingIds)}`;
+  await testSql`delete from email_outbox where ${testSql.unsafe(
+    bookingIds.map((id) => `dedupe_key like '%${id.replace(/[^0-9a-f-]/g, "")}%'`).join(" or "),
+  )}`;
+}

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isRazorpayConfigured, RazorpayApiError, verifyCheckoutSignature } from "@/lib/razorpay";
+import { sendQueuedEmailsSoon } from "@/server/email";
 import { settlePayment } from "@/server/payments";
 
 /**
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await settlePayment(paymentId, { expectedOrderId: orderId });
+    sendQueuedEmailsSoon();
     if (result.orderId !== orderId) {
       return Response.json({ error: "invalid_request" }, { status: 400, headers: noStore });
     }
