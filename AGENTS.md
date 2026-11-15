@@ -171,7 +171,7 @@ users / sessions  managed by Better Auth; app role on user: owner | receptionist
 
 ### Booking amount
 - Owner sets either a **fixed amount** or a **percentage** of the total in `settings`; a service may have `booking_amount_override_paise`. For multi-service bookings, use the largest applicable override, or the settings rule if none applies. Never exceed the total.
-- **Percentage amounts round to the nearest ₹10** (half up: ₹246.80 → ₹250, ₹245 → ₹250, ₹244.99 → ₹240), so customers pay friendly UPI amounts. Fixed amounts and overrides are used as set. If rounding up would exceed the total, charge the total. *(Decided by the owner, 2026-11-15.)*
+- **Percentage amounts round to the nearest ₹10** (half up: ₹246.80 → ₹250, ₹245 → ₹250, ₹244.99 → ₹240), so customers pay friendly UPI amounts. Fixed amounts and overrides are used as set. A positive amount never rounds down to ₹0 (it becomes ₹10). If rounding up would exceed the total, charge the total. Implemented in `server/pricing.ts`. *(Decided by the owner, 2026-11-15.)*
 - The computed amount is **snapshotted** on the booking (`amount_due_now_paise`). Changing settings never alters existing bookings.
 
 ### Availability

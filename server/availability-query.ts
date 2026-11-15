@@ -35,9 +35,14 @@ export async function getAvailability(params: {
   serviceIds: string[];
   /** Restrict to one technician; omit for "Any available". */
   staffId?: string;
+  /**
+   * Ignore this customer's own pending hold. Used when they change their time: the hold step
+   * releases their old hold in the same transaction, so it mustn't block their new choice.
+   */
+  ignoreHoldsOfPhone?: string;
   now?: Date;
 }): Promise<AvailabilityResult> {
-  const { date, serviceIds, staffId } = params;
+  const { date, serviceIds, staffId, ignoreHoldsOfPhone } = params;
   const now = params.now ?? new Date();
   const weekday = weekdayOf(date);
   const day = istDayRange(date);
@@ -86,7 +91,12 @@ export async function getAvailability(params: {
             select staff_id, starts_at, ends_at, status, hold_expires_at from bookings
             where staff_id in ${sql(staffIds)}
               and status in ('pending', 'confirmed', 'completed')
-              and starts_at < ${day.end} and ends_at > ${day.start}`,
+              and starts_at < ${day.end} and ends_at > ${day.start}
+              ${
+                ignoreHoldsOfPhone
+                  ? sql`and not (status = 'pending' and customer_id in (select id from customers where phone = ${ignoreHoldsOfPhone}))`
+                  : sql``
+              }`,
           sql<{ staff_id: string; starts_at: Date; ends_at: Date }[]>`
             select staff_id, starts_at, ends_at from staff_leave
             where status = 'approved' and staff_id in ${sql(staffIds)}
