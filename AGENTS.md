@@ -115,7 +115,8 @@ Every file in `server/` and `lib/db.ts`, `lib/razorpay.ts`, `lib/auth.ts` must s
   - **Anything that must be fresh** (availability, bookings, admin and staff data, anything per-user or per-session): never cached; render it inside `<Suspense>` with a skeleton fallback.
   - No parallel/intercepting routes or experimental flags unless asked.
 - **`middleware.ts` is now `proxy.ts`** in Next 16. Use it only for optimistic redirects (e.g. no session cookie → `/admin/login`), never as the auth check.
-- Use `next/image` for all raster images, with explicit sizes.
+- Use `next/image` for all raster images, with explicit `sizes`. Next 16 deprecates `priority`: for the LCP/hero image use `loading="eager" fetchPriority="high"`.
+- Server components must not import values (arrays, constants) from a `'use client'` module; they arrive as client references. Put shared constants in a plain module.
 - **Hydration**: never render `Date.now()`, `new Date()` or random values in server-rendered markup that the client will re-render. Time-dependent UI (today's slots) is computed on the client or passed from the server as data.
 - Environment variables: only `NEXT_PUBLIC_*` reaches the browser. **Secrets (`RAZORPAY_KEY_SECRET`, `DATABASE_URL`, `BETTER_AUTH_SECRET`, `RAZORPAY_WEBHOOK_SECRET`) must never have that prefix.** Parse all env vars once with zod in `lib/env.ts`.
 

@@ -69,4 +69,23 @@ insert into testimonials (name, quote, rating, service_label, sort_order) values
   ('Neha K.',  'Riya recreated a Pinterest design perfectly. Booking online took a minute.',   5, 'Nail art',       2),
   ('Simran B.','Super hygienic, relaxing pedicure, and they were right on time.',              5, 'Spa pedicure',   3);
 
+-- Placeholder portfolio artwork (public/placeholders). Real photos replace these via the admin.
+insert into portfolio_items (image_path, width, height, alt, caption, category_id, featured, sort_order)
+select '/placeholders/' || p.file, 800, 1000, p.alt, p.caption, c.id, p.featured, p.sort
+from (values
+  ('01-cherry-gloss.svg',  'Illustration of glossy cherry-red manicure',      'Cherry gloss',          'manicure',   false, 1),
+  ('02-nude-sheer.svg',    'Illustration of sheer nude manicure',             'Sheer nude',            'manicure',   false, 2),
+  ('03-chrome-pink.svg',   'Illustration of pink chrome nails',               'Pink chrome',           'nail-art',   true,  3),
+  ('04-french-tip.svg',    'Illustration of classic French tip extensions',   'Classic French',        'extensions', true,  4),
+  ('05-midnight.svg',      'Illustration of glossy midnight-black nails',     'Midnight gloss',        'extensions', false, 5),
+  ('06-lilac-dots.svg',    'Illustration of lilac nails with white dots',     'Lilac polka',           'nail-art',   false, 6),
+  ('07-cerise-art.svg',    'Illustration of bright cerise nails with dots',   'Cerise pop',            'nail-art',   true,  7),
+  ('08-sage-matte.svg',    'Illustration of matte sage green pedicure',       'Matte sage',            'pedicure',   false, 8),
+  ('09-gold-french.svg',   'Illustration of nude nails with gold French tips','Gold French',           'extensions', false, 9),
+  ('10-coral-pop.svg',     'Illustration of coral pedicure',                  'Coral summer',          'pedicure',   false, 10),
+  ('11-milky-ombre.svg',   'Illustration of milky pink ombre extensions',     'Milky ombre',           'extensions', false, 11),
+  ('12-red-chrome.svg',    'Illustration of deep red chrome nails',           'Red chrome',            'nail-art',   false, 12)
+) as p(file, alt, caption, cat, featured, sort)
+join service_categories c on c.slug = p.cat;
+
 commit;

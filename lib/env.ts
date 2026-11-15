@@ -11,6 +11,8 @@ const optional = <T extends z.ZodType>(type: T) => z.preprocess((v) => (v === ""
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  // Public origin of the site, used for absolute URLs in link previews (Open Graph).
+  SITE_URL: z.url({ protocol: /^https?$/ }).default("http://localhost:3000"),
   // Razorpay. Optional so the app runs without payments configured; payment routes return 503.
   RAZORPAY_KEY_ID: optional(z.string().regex(/^rzp_(test|live)_\w+$/, "Expected rzp_test_… or rzp_live_…")),
   RAZORPAY_KEY_SECRET: optional(z.string().min(8)),

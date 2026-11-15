@@ -17,6 +17,7 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
+import { InstagramIcon } from "@/components/ui/brand-icons";
 import { Chip, Code, Count, StatusPill } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState, Section, Stat } from "@/components/ui/card";
@@ -296,6 +297,9 @@ function AppKit({ dark, onToggleDark }: { dark: boolean; onToggleDark: () => voi
               </Button>
               <Button size="icon" aria-label="Edit">
                 <Pencil />
+              </Button>
+              <Button size="icon" aria-label="Instagram">
+                <InstagramIcon />
               </Button>
             </div>
           </Group>
