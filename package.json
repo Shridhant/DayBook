@@ -7,7 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:setup": "bash scripts/db-setup-local.sh",
+    "db:migrate": "dbmate --env-file .env.local -e DATABASE_MIGRATION_URL up",
+    "db:rollback": "dbmate --env-file .env.local -e DATABASE_MIGRATION_URL rollback",
+    "db:status": "dbmate --env-file .env.local -e DATABASE_MIGRATION_URL status",
+    "db:new": "dbmate new",
+    "db:seed": "node --env-file=.env.local scripts/db-seed.mjs",
+    "db:test:prepare": "dbmate --env-file .env.local -e DATABASE_MIGRATION_URL_TEST --no-dump-schema up"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -15,19 +24,23 @@
     "lucide-react": "^1.73.0",
     "motion": "^14.14.0",
     "next": "16.4.6",
+    "postgres": "^4.1.1",
     "radix-ui": "^1.8.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "tailwind-merge": "^3.7.0"
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
-    "@types/node": "^20",
+    "@types/node": "^24.19.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
     "tailwindcss": "4.3.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.1.0"
   }
 }
