@@ -5,7 +5,7 @@ import { z } from "zod";
 const requireApiUser = vi.fn();
 vi.mock("@/server/admin/auth", () => ({ requireApiUser: (...args: unknown[]) => requireApiUser(...args) }));
 
-const { adminRoute, AdminError, OWNER_ONLY } = await import("@/server/admin/http");
+const { adminRoute, AdminError, OWNER_ONLY, staffRoute } = await import("@/server/admin/http");
 
 const owner = { id: "u1", name: "O", email: "o@x.test", role: "owner", staffId: null };
 const post = (body: unknown) => new Request("http://test/api", { method: "POST", body: JSON.stringify(body) });
@@ -49,5 +49,23 @@ describe("adminRoute", () => {
     const res = await byId(new Request("http://test"), { params: Promise.resolve({ id: "01900000-0000-7000-8000-000000000000" }) });
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ error: "not_allowed", message: "Nope" });
+  });
+});
+
+describe("staffRoute", () => {
+  const route = staffRoute({}, async ({ user }) => ({ staffId: user.staffId }));
+
+  it("only lets technicians in (the role list passed to the session check)", async () => {
+    requireApiUser.mockResolvedValue({ ...owner, role: "staff", staffId: "s1" });
+    const res = await route(new Request("http://test"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ staffId: "s1" });
+    expect(requireApiUser).toHaveBeenLastCalledWith(expect.any(Request), ["staff"]);
+  });
+
+  it("refuses a technician login that isn't linked to an artist profile", async () => {
+    requireApiUser.mockResolvedValue({ ...owner, role: "staff", staffId: null });
+    const res = await route(new Request("http://test"));
+    expect(res.status).toBe(403);
   });
 });

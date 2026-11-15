@@ -29,3 +29,22 @@ export function nextStatus(current: BookingStatus, action: AdminAction): Booking
 export function availableActions(current: BookingStatus): AdminAction[] {
   return (Object.keys(TRANSITIONS) as AdminAction[]).filter((a) => nextStatus(current, a) !== null);
 }
+
+/* ---------- Technicians (staff portal) ---------- */
+
+/** Technicians close out their own appointments; cancelling stays with the front desk (refunds, customer contact). */
+export const STAFF_ACTIONS = ["complete", "no_show", "reopen"] as const satisfies readonly AdminAction[];
+export type StaffAction = (typeof STAFF_ACTIONS)[number];
+
+/** How long after an appointment a technician can still mark it (or undo a mistake). */
+export const STAFF_EDIT_DAYS = 7;
+
+/**
+ * Actions a technician may take on one of their bookings. Only once it has started (you can't
+ * mark a no-show in advance) and for a week afterwards, so old records don't change silently.
+ */
+export function staffActions(current: BookingStatus, startsAt: Date, now: Date): StaffAction[] {
+  if (startsAt > now) return [];
+  if (now.getTime() - startsAt.getTime() > STAFF_EDIT_DAYS * 24 * 60 * 60 * 1000) return [];
+  return STAFF_ACTIONS.filter((a) => nextStatus(current, a) !== null);
+}

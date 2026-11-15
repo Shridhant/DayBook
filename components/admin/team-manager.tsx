@@ -18,7 +18,7 @@ const ROLE = { owner: "Owner", receptionist: "Front desk", staff: "Artist" } as 
 const ROLE_HINT = {
   owner: "Everything, including prices, settings and team logins.",
   receptionist: "Bookings, walk-ins, leave, closures and website content.",
-  staff: "Artist portal (coming in phase 2). No admin access yet.",
+  staff: "Their own schedule and leave requests at /staff. Link them to their artist profile. No admin access.",
 } as const;
 type Role = keyof typeof ROLE;
 

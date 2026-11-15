@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BellOff, CalendarCheck, CircleAlert, CircleX } from "lucide-react";
+import { Bell, BellOff, CalendarCheck, CalendarOff, CircleAlert, CircleX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,8 @@ import type { AdminNotification } from "@/server/admin/notifications-admin";
 const POLL_MS = 30_000;
 const SOUND_KEY = "daybook-notify-sound";
 
-const ICON = { booking_confirmed: CalendarCheck, payment_review: CircleAlert, booking_cancelled: CircleX } as const;
-const TONE = { booking_confirmed: "text-success", payment_review: "text-warning", booking_cancelled: "text-muted" } as const;
+const ICON = { booking_confirmed: CalendarCheck, payment_review: CircleAlert, booking_cancelled: CircleX, leave_requested: CalendarOff } as const;
+const TONE = { booking_confirmed: "text-success", payment_review: "text-warning", booking_cancelled: "text-muted", leave_requested: "text-warning" } as const;
 
 /** Short two-note chime via Web Audio (no audio file to load). Browsers allow it after any click. */
 function chime() {
@@ -170,7 +170,8 @@ export function NotificationBell() {
                     onClick={() => {
                       if (!n.read) void markRead({ ids: [n.id] });
                       setOpen(false);
-                      if (n.bookingCode) router.push(`/admin/bookings?q=${encodeURIComponent(n.bookingCode)}`);
+                      if (n.type === "leave_requested") router.push("/admin/staff#leave-requests");
+                      else if (n.bookingCode) router.push(`/admin/bookings?q=${encodeURIComponent(n.bookingCode)}`);
                     }}
                     className={cn("flex w-full gap-2.5 px-3 py-2.5 text-left hover:bg-hover", !n.read && "bg-accent-soft/40")}
                   >

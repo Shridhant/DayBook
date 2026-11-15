@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BookingStatus } from "@/server/availability";
-import { availableActions, nextStatus } from "@/lib/booking-status";
+import { availableActions, nextStatus, STAFF_EDIT_DAYS, staffActions } from "@/lib/booking-status";
 
 const ALL: BookingStatus[] = ["pending", "confirmed", "completed", "no_show", "cancelled", "expired"];
 
@@ -35,5 +35,33 @@ describe("booking status transitions", () => {
 
   it("only ever moves to a real status", () => {
     for (const status of ALL) for (const action of availableActions(status)) expect(ALL).toContain(nextStatus(status, action));
+  });
+});
+
+describe("technician actions", () => {
+  const now = new Date("2026-11-20T10:00:00Z");
+  const minutesAgo = (m: number) => new Date(now.getTime() - m * 60_000);
+
+  it("offers done / no-show once the appointment has started, never cancel", () => {
+    expect(staffActions("confirmed", minutesAgo(5), now)).toEqual(["complete", "no_show"]);
+    expect(staffActions("confirmed", now, now)).toEqual(["complete", "no_show"]);
+  });
+
+  it("offers nothing before the start time", () => {
+    expect(staffActions("confirmed", minutesAgo(-1), now)).toEqual([]);
+  });
+
+  it("lets a technician undo a mark within the edit window", () => {
+    expect(staffActions("completed", minutesAgo(60), now)).toEqual(["reopen"]);
+    expect(staffActions("no_show", minutesAgo(60), now)).toEqual(["reopen"]);
+  });
+
+  it("locks bookings older than the edit window", () => {
+    expect(staffActions("confirmed", minutesAgo(STAFF_EDIT_DAYS * 24 * 60 + 1), now)).toEqual([]);
+    expect(staffActions("confirmed", minutesAgo(STAFF_EDIT_DAYS * 24 * 60), now)).toEqual(["complete", "no_show"]);
+  });
+
+  it("offers nothing for holds, cancelled or expired bookings", () => {
+    for (const s of ["pending", "cancelled", "expired"] as const) expect(staffActions(s, minutesAgo(5), now)).toEqual([]);
   });
 });

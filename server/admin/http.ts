@@ -6,7 +6,7 @@ import { AvailabilityError } from "../availability-query";
 import { isPgError } from "../booking-insert";
 import { CATALOG_TAG } from "../catalog";
 import { CONTENT_TAG } from "../content";
-import { requireApiUser, type AdminUser } from "./auth";
+import { requireApiUser, type AdminUser, type StaffUser } from "./auth";
 
 /**
  * Shared plumbing for admin route handlers: role check, zod body parsing, consistent errors.
@@ -75,6 +75,20 @@ export function adminRoute<B = undefined>(
       throw error;
     }
   };
+}
+
+/**
+ * Staff portal route handlers: same plumbing as adminRoute, for technicians only. The handler
+ * gets the technician's own staffId, and every query it runs must be scoped to it (AGENTS.md §8).
+ */
+export function staffRoute<B = undefined>(
+  options: { body?: z.ZodType<B> },
+  handler: (args: { request: Request; user: StaffUser; body: B; params: Record<string, string> }) => Promise<unknown>,
+) {
+  return adminRoute({ roles: ["staff"], body: options.body }, ({ user, ...rest }) => {
+    if (!user.staffId) throw new AdminError(403, "forbidden", "Your login isn't linked to an artist profile. Ask the owner.");
+    return handler({ ...rest, user: { ...user, staffId: user.staffId } });
+  });
 }
 
 /**

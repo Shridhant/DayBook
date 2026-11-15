@@ -18,7 +18,7 @@ export type AdminUser = {
   staffId: string | null;
 };
 
-/** Roles allowed into the admin panel. Technicians ("staff") get the staff portal in phase 2. */
+/** Roles allowed into the admin panel. Technicians ("staff") use the staff portal at /staff. */
 export const ADMIN_ROLES: StaffRole[] = ["owner", "receptionist"];
 
 function toAdminUser(user: Record<string, unknown> | undefined | null): AdminUser | null {
@@ -42,8 +42,20 @@ export const getCurrentUser = cache(async (): Promise<AdminUser | null> => {
 export async function requirePageUser(roles: StaffRole[] = ADMIN_ROLES): Promise<AdminUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/admin/login");
-  if (!roles.includes(user.role)) redirect("/admin/forbidden");
+  if (!roles.includes(user.role)) redirect(user.role === "staff" ? "/staff" : "/admin/forbidden");
   return user;
+}
+
+/** A technician signed in to the staff portal, always linked to their artist profile. */
+export type StaffUser = AdminUser & { staffId: string };
+
+/** For staff portal pages. The owner and front desk are sent to the admin; an unlinked login sees the no-access page. */
+export async function requireStaffPageUser(): Promise<StaffUser> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/admin/login?next=/staff");
+  if (user.role !== "staff") redirect("/admin");
+  if (!user.staffId) redirect("/admin/forbidden");
+  return { ...user, staffId: user.staffId };
 }
 
 /**

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Optimistic redirect only (AGENTS.md §8): no session cookie → login page. This is NOT the
- * security check; every admin page and API route verifies the session and role on the server.
+ * security check; every admin/staff page and API route verifies the session and role on the server.
  */
 export function proxy(request: NextRequest) {
   if (getSessionCookie(request)) return NextResponse.next();
@@ -13,6 +13,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // All /admin pages except the login page itself.
-  matcher: ["/admin", "/admin/((?!login).*)"],
+  // All /admin pages except the login page itself, and the staff portal.
+  matcher: ["/admin", "/admin/((?!login).*)", "/staff", "/staff/:path*"],
 };

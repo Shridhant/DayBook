@@ -27,7 +27,7 @@ It has three surfaces:
 | **Public site** (`/`) | Customers | Portfolio-led landing page: services and prices, gallery, Instagram reels, testimonials, team, location. Must look great and load fast on **phones first**, then laptops. |
 | **Booking flow** (`/book`) | Customers (no login) | Pick services → pick technician (optional, "Any available" by default) → date and slot → details → pay the booking amount through Razorpay → confirmation. |
 | **Admin** (`/admin`) | Owner, receptionist | Day calendar per technician, bookings, walk-ins, staff/skills/shifts/leave, services and prices, booking-amount settings, portfolio, Instagram links, testimonials, closures. |
-| **Staff portal** (`/staff`, phase 2) | Technicians | Their own schedule, mark started/completed/no-show, request leave. |
+| **Staff portal** (`/staff`, phase 2) | Technicians | Their own schedule, mark completed/no-show, request leave. |
 
 Scale: one salon, **10–12 technicians**, a few hundred bookings a month. Customers never log in.
 
@@ -233,6 +233,9 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - **Role split (decided by the owner, 2026-11-16):** `owner` = everything. `receptionist` (front desk) = bookings, walk-ins, artists' **leave**, **closures**, and website content (**portfolio, Instagram, reviews**); artist profiles/skills/shifts are read-only for them. Owner-only: services and prices, settings and opening hours, artist profiles/skills/shifts, team logins. Constants: `OWNER_ONLY` / `FRONT_DESK` in `server/admin/http.ts`.
 - Every admin API route is wrapped in `adminRoute({ roles, body }, handler)` (`server/admin/http.ts`): it checks the role, zod-parses the body, validates `[id]`, and maps `AdminError` to a clean JSON error. Admin writes that affect the public site call `refreshPublic("catalog" | "content")`.
 - Changes that would strand existing bookings (shifts, leave, closures) return `{ saved: false, clashes }` first; the UI shows them and resends with `force: true`.
+- **Staff portal** (`/staff`): technicians sign in at `/admin/login` like everyone else and land on `/staff`; their login must be linked to an artist profile (`users.staff_id`). Pages use `requireStaffPageUser()`, API routes `staffRoute()` (`server/admin/http.ts`), and every query in `server/staff-portal.ts` is scoped to the session's `staffId`. Another artist's booking answers 404, never 403.
+- Technicians may mark their own bookings **done / no-show** (and undo) only once the appointment has started and for 7 days after (`staffActions` in `lib/booking-status.ts`). They never cancel: cancellations, refunds and customer contact stay with the front desk.
+- **Leave requests:** technicians request (`status = 'requested'`, at most 5 open), the front desk approves or declines with an optional note (`/admin/staff`, clash preview on approve). Only approved leave blocks availability. A request notifies the admin bell (`leave_requested`, in-app only); a technician can withdraw it until it's answered.
 - Rate-limit login and any OTP endpoints. Firing a staff member = deactivate the user and delete their sessions.
 - Better Auth only accepts requests whose Origin matches `SITE_URL`. Set `SITE_URL` to the real public origin in every environment, or login fails with `INVALID_ORIGIN`.
 - Better Auth's tables (`users`, `sessions`, `accounts`, `verifications`, `rate_limits`) are created by dbmate migrations, never by Better Auth itself. Their naming lives in `lib/auth-schema.ts`.

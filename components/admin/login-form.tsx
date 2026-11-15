@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { useMotionSafe } from "@/lib/use-motion-safe";
 
-/** Only allow redirects back into the admin (no open redirects to other sites). */
+/** Only allow redirects back into the admin or staff portal (no open redirects to other sites). */
 function safeNext(value: string | null): string {
-  return value && value.startsWith("/admin") && !value.startsWith("//") ? value : "/admin";
+  return value && /^\/(admin|staff)(\/|\?|$)/.test(value) ? value : "/admin";
 }
 
 export function LoginForm({ brand }: { brand: string }) {

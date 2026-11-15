@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { STAFF_ROLES } from "@/lib/auth-schema";
+import { STAFF_ACTIONS } from "@/lib/booking-status";
 import { isDateKey } from "@/lib/time";
 import { rupeesSchema } from "./http";
 
@@ -40,6 +41,15 @@ export const leaveSchema = z.object({
   reason: optionalText(200),
   force: z.boolean().default(false),
 });
+export const leaveDecisionSchema = z.object({
+  approve: z.boolean(),
+  note: optionalText(200),
+  force: z.boolean().default(false),
+});
+
+/* Staff portal (technicians) */
+export const staffLeaveRequestSchema = leaveSchema.omit({ force: true });
+export const staffActionSchema = z.object({ action: z.enum(STAFF_ACTIONS) });
 
 const optionalRupees = z.union([z.literal(""), z.null(), rupeesSchema]).transform((v) => (v === "" || v === null ? null : v));
 export const serviceSchema = z.object({

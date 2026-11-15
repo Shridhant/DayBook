@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Checkbox, Switch } from "@/components/ui/toggle";
-import { formatDate, formatInstantTime, toIst } from "@/lib/time";
+import { formatLeaveRange } from "@/lib/time";
 import type { AdminCategory, AdminService } from "@/server/admin/services-admin";
 import type { StaffDetail } from "@/server/admin/staff-admin";
 import { adminFetch, ClashDialog, ImageUpload, useMutation, type Clash } from "./admin-kit";
@@ -278,9 +278,7 @@ function LeaveSection({ staff }: { staff: StaffDetail }) {
             return (
               <li key={l.id} className="flex items-center justify-between gap-3 px-3 py-2">
                 <span>
-                  <span className="font-medium tabular-nums">
-                    {formatDate(toIst(s).date)} {formatInstantTime(s)} → {formatDate(toIst(new Date(e.getTime() - 1)).date)} {formatInstantTime(e)}
-                  </span>
+                  <span className="font-medium tabular-nums">{formatLeaveRange(s, e)}</span>
                   {l.reason && <span className="block text-xs text-muted">{l.reason}</span>}
                 </span>
                 <Button

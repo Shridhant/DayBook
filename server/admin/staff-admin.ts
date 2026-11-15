@@ -226,3 +226,65 @@ export async function deleteLeave(leaveId: string) {
   const [row] = await sql`delete from staff_leave where id = ${leaveId} returning id`;
   if (!row) throw notFound("Leave");
 }
+
+/* ---------- Leave requests from technicians (staff portal) ---------- */
+
+export type LeaveRequest = {
+  id: string;
+  staffId: string;
+  staffName: string;
+  startsAt: string;
+  endsAt: string;
+  reason: string | null;
+  requestedAt: string;
+  /** Upcoming bookings the leave would overlap, so the front desk sees the cost before approving. */
+  clashCount: number;
+};
+
+/** Unanswered requests that haven't already passed, oldest first. */
+export async function listLeaveRequests(): Promise<LeaveRequest[]> {
+  return sql<LeaveRequest[]>`
+    select l.id, l.staff_id as "staffId", st.name as "staffName", to_json(l.starts_at) #>> '{}' as "startsAt",
+           to_json(l.ends_at) #>> '{}' as "endsAt", l.reason, to_json(l.created_at) #>> '{}' as "requestedAt",
+           (select count(*)::int from bookings b
+            where b.staff_id = l.staff_id and b.status in ('pending', 'confirmed') and b.starts_at > now()
+              and b.starts_at < l.ends_at and b.ends_at > l.starts_at) as "clashCount"
+    from staff_leave l join staff st on st.id = l.staff_id
+    where l.status = 'requested' and l.ends_at > now()
+    order by l.created_at`;
+}
+
+/**
+ * Approves or declines a technician's request. Approving leave that overlaps bookings returns the
+ * clashes first (like adding leave directly); the UI resends with `force`.
+ */
+export async function decideLeave(
+  leaveId: string,
+  decision: { approve: boolean; note?: string | null; force: boolean },
+  userId: string,
+): Promise<{ clashes: Clash[]; saved: boolean }> {
+  const [leave] = await sql<{ staff_id: string; starts_at: Date; ends_at: Date; status: string }[]>`
+    select staff_id, starts_at, ends_at, status from staff_leave where id = ${leaveId}`;
+  if (!leave) throw notFound("Leave request");
+  if (leave.status !== "requested") throw new AdminError(409, "already_decided", "This request was already answered.");
+
+  let clashes: Clash[] = [];
+  if (decision.approve) {
+    clashes = (await upcomingBookings(leave.staff_id))
+      .filter((b) => new Date(b.startsAt) < leave.ends_at && new Date(b.endsAt) > leave.starts_at)
+      .map(toClash);
+    if (clashes.length && !decision.force) return { clashes, saved: false };
+  }
+
+  const [updated] = await sql`
+    update staff_leave set
+      status = ${decision.approve ? "approved" : "rejected"},
+      decided_by = ${userId},
+      decided_at = now(),
+      decision_note = ${decision.note?.trim() || null}
+    where id = ${leaveId} and status = 'requested'
+    returning id`;
+  // Withdrawn or answered by someone else in the meantime.
+  if (!updated) throw new AdminError(409, "already_decided", "This request was just withdrawn or answered. Refresh to see it.");
+  return { clashes, saved: true };
+}

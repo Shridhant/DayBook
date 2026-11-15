@@ -5,6 +5,7 @@ import {
   formatDate,
   formatDuration,
   formatInstantTime,
+  formatLeaveRange,
   formatTime,
   fromIst,
   isDateKey,
@@ -155,5 +156,25 @@ describe("display formatting", () => {
     expect(formatDuration(90)).toBe("1h 30m");
     expect(formatDuration(150)).toBe("2h 30m");
     expect(() => formatDuration(-5)).toThrow(RangeError);
+  });
+});
+
+describe("formatLeaveRange", () => {
+  const at = (date: string, time: string) => fromIst(date, timeToMinutes(time));
+
+  it("shows one whole day as a date", () => {
+    expect(formatLeaveRange(at("2026-11-21", "00:00"), at("2026-11-22", "00:00"))).toBe("Sat, 21 Nov");
+  });
+
+  it("shows several whole days with an inclusive end date", () => {
+    expect(formatLeaveRange(at("2026-11-21", "00:00"), at("2026-11-24", "00:00"))).toBe("Sat, 21 Nov – Mon, 23 Nov");
+  });
+
+  it("shows times for part of a day", () => {
+    expect(formatLeaveRange(at("2026-11-21", "14:00"), at("2026-11-21", "17:00"))).toBe("Sat, 21 Nov, 2:00 pm – 5:00 pm");
+  });
+
+  it("shows both dates when part-day leave spans days", () => {
+    expect(formatLeaveRange(at("2026-11-21", "14:00"), at("2026-11-22", "12:00"))).toBe("Sat, 21 Nov, 2:00 pm – Sun, 22 Nov, 12:00 pm");
   });
 });

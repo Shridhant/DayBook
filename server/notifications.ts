@@ -3,6 +3,7 @@ import type { Sql, TransactionSql } from "postgres";
 import { env } from "@/lib/env";
 import { buildIcs } from "@/lib/ics";
 import { site } from "@/lib/site";
+import { formatLeaveRange } from "@/lib/time";
 import {
   customerConfirmationEmail,
   ownerBookingConfirmedEmail,
@@ -132,4 +133,21 @@ export async function onBookingCancelled(db: Db, bookingId: string, byName: stri
     bookingId: b.id,
     dedupeKey: `booking_cancelled:${b.id}`,
   });
+}
+
+/**
+ * A technician asked for time off: tell the front desk in the admin bell (in-app only, no email).
+ * Keyed by the request, so it can't notify twice; withdrawing the request removes it (cascade).
+ */
+export async function onLeaveRequested(db: Db, leaveId: string): Promise<void> {
+  const [row] = await db<{ staff_name: string; starts_at: Date; ends_at: Date; reason: string | null }[]>`
+    select st.name as staff_name, l.starts_at, l.ends_at, l.reason
+    from staff_leave l join staff st on st.id = l.staff_id where l.id = ${leaveId}`;
+  if (!row) return;
+  const when = formatLeaveRange(row.starts_at, row.ends_at);
+  await db`
+    insert into notifications (type, title, body, staff_leave_id, dedupe_key)
+    values ('leave_requested', ${`Leave request: ${row.staff_name}`}, ${row.reason ? `${when} · ${row.reason}` : when},
+            ${leaveId}, ${`leave_requested:${leaveId}`})
+    on conflict (dedupe_key) do nothing`;
 }

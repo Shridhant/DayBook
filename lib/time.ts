@@ -165,3 +165,18 @@ export function formatDuration(minutes: number): string {
   if (h === 0) return `${m}m`;
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
+
+/**
+ * A leave range for display. Whole days read as dates ("Sat, 21 Nov – Mon, 23 Nov"; the end is
+ * exclusive midnight), part days include times ("Sat, 21 Nov, 2:00 pm – 5:00 pm").
+ */
+export function formatLeaveRange(start: Date, end: Date): string {
+  const s = toIst(start);
+  const e = toIst(end);
+  if (s.minutes === 0 && e.minutes === 0) {
+    const lastDay = addDays(e.date, -1);
+    return lastDay === s.date ? formatDate(s.date) : `${formatDate(s.date)} – ${formatDate(lastDay)}`;
+  }
+  const from = `${formatDate(s.date)}, ${formatTime(s.minutes)}`;
+  return s.date === e.date ? `${from} – ${formatTime(e.minutes)}` : `${from} – ${formatDate(e.date)}, ${formatTime(e.minutes)}`;
+}

@@ -202,7 +202,8 @@ CREATE TABLE public.notifications (
     booking_id uuid,
     dedupe_key text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT notifications_type_check CHECK ((type = ANY (ARRAY['booking_confirmed'::text, 'payment_review'::text, 'booking_cancelled'::text])))
+    staff_leave_id uuid,
+    CONSTRAINT notifications_type_check CHECK ((type = ANY (ARRAY['booking_confirmed'::text, 'payment_review'::text, 'booking_cancelled'::text, 'leave_requested'::text])))
 );
 
 
@@ -444,6 +445,10 @@ CREATE TABLE public.staff_leave (
     status text DEFAULT 'approved'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    requested_by uuid,
+    decided_by uuid,
+    decided_at timestamp with time zone,
+    decision_note text,
     CONSTRAINT staff_leave_check CHECK ((ends_at > starts_at)),
     CONSTRAINT staff_leave_status_check CHECK ((status = ANY (ARRAY['requested'::text, 'approved'::text, 'rejected'::text])))
 );
@@ -994,6 +999,13 @@ CREATE INDEX staff_leave_lookup_idx ON public.staff_leave USING btree (staff_id,
 
 
 --
+-- Name: staff_leave_requested_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX staff_leave_requested_idx ON public.staff_leave USING btree (created_at) WHERE (status = 'requested'::text);
+
+
+--
 -- Name: staff_services_service_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1149,6 +1161,14 @@ ALTER TABLE ONLY public.notifications
 
 
 --
+-- Name: notifications notifications_staff_leave_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_staff_leave_id_fkey FOREIGN KEY (staff_leave_id) REFERENCES public.staff_leave(id) ON DELETE CASCADE;
+
+
+--
 -- Name: payments payments_booking_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1178,6 +1198,22 @@ ALTER TABLE ONLY public.services
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: staff_leave staff_leave_decided_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.staff_leave
+    ADD CONSTRAINT staff_leave_decided_by_fkey FOREIGN KEY (decided_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: staff_leave staff_leave_requested_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.staff_leave
+    ADD CONSTRAINT staff_leave_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --
@@ -1238,4 +1274,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261115120300'),
     ('20261116120000'),
     ('20261117120000'),
-    ('20261118120000');
+    ('20261118120000'),
+    ('20261119120000');
