@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { Chip, Code, Count, StatusPill } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/menu";
 import { Accent, DisplayTitle, Eyebrow, Lead, PageSection, SectionHeader } from "@/components/ui/page-section";
 import { Rating } from "@/components/ui/rating";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Reveal } from "@/components/ui/reveal";
 import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
@@ -473,6 +475,22 @@ function AppKit({ dark, onToggleDark }: { dark: boolean; onToggleDark: () => voi
               <Button variant="danger" onClick={() => setConfirmOpen(true)}>
                 Confirm dialog
               </Button>
+            </div>
+          </Group>
+
+          <Group title="Alerts + skeletons">
+            <div className="grid gap-3 lg:grid-cols-2">
+              <Alert size="app" tone="info" title="Heads up">Bookings sync every minute.</Alert>
+              <Alert size="app" tone="success" title="Payment captured">₹500 for DB-7K2Q.</Alert>
+              <Alert size="app" tone="warning" title="Hold expiring">2 minutes left on this slot.</Alert>
+              <Alert size="app" tone="danger" title="Payment failed">No money was taken.</Alert>
+            </div>
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-8 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-1/3" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
             </div>
           </Group>
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isRazorpayConfigured, RazorpayApiError } from "@/lib/razorpay";
+import { RazorpayApiError, RazorpayNotConfiguredError } from "@/lib/razorpay";
 import { PaymentError, startPayment } from "@/server/payments";
 
 /**
@@ -16,13 +16,6 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return Response.json({ error: "invalid_request", message: "Invalid booking" }, { status: 400, headers: noStore });
   }
-  if (!isRazorpayConfigured()) {
-    return Response.json(
-      { error: "payments_unavailable", message: "Online payments aren't available right now." },
-      { status: 503, headers: noStore },
-    );
-  }
-
   try {
     const start = await startPayment(parsed.data.bookingId);
     return Response.json(start, { headers: noStore });
@@ -30,6 +23,13 @@ export async function POST(request: Request) {
     if (error instanceof PaymentError) {
       const status = error.code === "not_found" ? 404 : 409;
       return Response.json({ error: error.code, message: error.message }, { status, headers: noStore });
+    }
+    // Only bookings that need an online payment reach Razorpay; ₹0 bookings confirm without it.
+    if (error instanceof RazorpayNotConfiguredError) {
+      return Response.json(
+        { error: "payments_unavailable", message: "Online payments aren't available right now." },
+        { status: 503, headers: noStore },
+      );
     }
     if (error instanceof RazorpayApiError) {
       return Response.json(
