@@ -56,9 +56,25 @@ export function SiteFooter() {
         </ul>
       </div>
       <div className="border-t border-line">
-        <p className="container-page py-5 text-[13px] text-muted">
-          © {site.name}. The amount you pay online to book is adjusted against your final bill.
-        </p>
+        <div className="container-page flex flex-col gap-3 py-5 text-[13px] text-muted md:flex-row md:items-center md:justify-between">
+          <p>© {site.legalName || site.name}. The amount you pay online to book is adjusted against your final bill.</p>
+          <nav aria-label="Policies">
+            <ul className="flex flex-wrap gap-x-4 gap-y-1">
+              {[
+                ["/contact", "Contact"],
+                ["/cancellation-policy", "Cancellation & refunds"],
+                ["/terms", "Terms"],
+                ["/privacy", "Privacy"],
+              ].map(([href, label]) => (
+                <li key={href}>
+                  <Link href={href} className="hover:text-ink">
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
       </div>
     </footer>
   );

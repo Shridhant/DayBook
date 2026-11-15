@@ -124,6 +124,17 @@ export function PayStep({
             <Button variant="primary" size="pub-lg" block loading={busy} onClick={onPay}>
               {hold.amountDueNowPaise > 0 ? `Pay ${formatINR(hold.amountDueNowPaise)}` : "Confirm booking"}
             </Button>
+            <p className="text-center text-[13px] text-muted">
+              By {hold.amountDueNowPaise > 0 ? "paying" : "confirming"}, you agree to our{" "}
+              <a href="/terms" target="_blank" rel="noopener" className="underline underline-offset-2 hover:text-ink">
+                terms
+              </a>{" "}
+              and{" "}
+              <a href="/cancellation-policy" target="_blank" rel="noopener" className="underline underline-offset-2 hover:text-ink">
+                cancellation policy
+              </a>
+              .
+            </p>
             {hold.amountDueNowPaise > 0 && (
               <p className="flex items-center justify-center gap-1.5 text-[13px] text-muted">
                 <ShieldCheck aria-hidden className="size-4" /> Secure payment by Razorpay · UPI, cards, netbanking

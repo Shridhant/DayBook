@@ -2,6 +2,7 @@ import { z } from "zod";
 import { RazorpayApiError, RazorpayNotConfiguredError } from "@/lib/razorpay";
 import { sendQueuedEmailsSoon } from "@/server/email";
 import { PaymentError, startPayment } from "@/server/payments";
+import { clientIp, hitRateLimit, LIMITS, tooManyRequests } from "@/server/rate-limit";
 
 /**
  * POST /api/payments/order  { bookingId }
@@ -13,6 +14,9 @@ const bodySchema = z.object({ bookingId: z.uuid() });
 const noStore = { "Cache-Control": "no-store" };
 
 export async function POST(request: Request) {
+  const limited = await hitRateLimit(`payment:ip:${clientIp(request)}`, LIMITS.paymentPerIp);
+  if (!limited.allowed) return tooManyRequests(limited);
+
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return Response.json({ error: "invalid_request", message: "Invalid booking" }, { status: 400, headers: noStore });

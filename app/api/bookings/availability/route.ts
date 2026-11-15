@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { formatTime, isDateKey } from "@/lib/time";
 import { AvailabilityError, getAvailability } from "@/server/availability-query";
+import { clientIp, hitRateLimit, LIMITS, tooManyRequests } from "@/server/rate-limit";
 
 /**
  * GET /api/bookings/availability?date=2026-11-20&services=<uuid>,<uuid>[&staff=<uuid>]
@@ -23,6 +24,9 @@ const querySchema = z.object({
 const noStore = { "Cache-Control": "no-store" };
 
 export async function GET(request: Request) {
+  const limited = await hitRateLimit(`availability:ip:${clientIp(request)}`, LIMITS.availabilityPerIp);
+  if (!limited.allowed) return tooManyRequests(limited);
+
   const params = Object.fromEntries(new URL(request.url).searchParams);
   const parsed = querySchema.safeParse(params);
   if (!parsed.success) {

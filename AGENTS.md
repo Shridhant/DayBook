@@ -249,7 +249,9 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - File-system calls on runtime paths (like `UPLOAD_DIR`) need `/*turbopackIgnore: true*/`, or the build traces the whole project into the deploy output.
 - Instagram embeds: accept only `https://www.instagram.com/(p|reel)/<id>/` URLs; validate before storing.
 - Return generic error messages to clients; log details server-side.
-- Add CAPTCHA (Cloudflare Turnstile) to the public booking hold endpoint if spam appears.
+- Public endpoints are rate-limited in Postgres (`server/rate-limit.ts`, `LIMITS`): hold 10/10 min per IP + 6/hour per phone, payment start 20/10 min, availability 120/min. Client IP comes from proxy headers, so **the app must only be reachable through Caddy/Cloudflare, never directly**. Add Cloudflare Turnstile if spam still appears.
+- Security headers live in `lib/security-headers.ts` (applied in `next.config.ts`). The CSP follows Next's "without nonces" setup on purpose: nonces would force dynamic rendering and break partial prerendering. Every external origin is allow-listed explicitly (Razorpay, Instagram, Google Maps). **Adding a third-party script, frame or API means updating the CSP and re-testing a Razorpay payment.**
+- Policy pages (`/privacy`, `/terms`, `/cancellation-policy`, `/contact`) must describe what the system actually does. Change them when behaviour changes (new data collected, new processor, refund rules).
 
 ---
 

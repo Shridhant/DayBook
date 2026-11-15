@@ -296,6 +296,17 @@ CREATE TABLE public.rate_limits (
 
 
 --
+-- Name: request_limits; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.request_limits (
+    key text NOT NULL,
+    window_start timestamp with time zone DEFAULT now() NOT NULL,
+    count integer DEFAULT 0 NOT NULL
+);
+
+
+--
 -- Name: salon_closures; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -702,6 +713,14 @@ ALTER TABLE ONLY public.rate_limits
 
 
 --
+-- Name: request_limits request_limits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.request_limits
+    ADD CONSTRAINT request_limits_pkey PRIMARY KEY (key);
+
+
+--
 -- Name: salon_closures salon_closures_date_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -944,6 +963,13 @@ CREATE INDEX payments_needs_review_idx ON public.payments USING btree (created_a
 --
 
 CREATE INDEX portfolio_items_listing_idx ON public.portfolio_items USING btree (sort_order) WHERE active;
+
+
+--
+-- Name: request_limits_window_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX request_limits_window_idx ON public.request_limits USING btree (window_start);
 
 
 --
@@ -1211,4 +1237,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261115120200'),
     ('20261115120300'),
     ('20261116120000'),
-    ('20261117120000');
+    ('20261117120000'),
+    ('20261118120000');

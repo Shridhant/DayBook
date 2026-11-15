@@ -6,6 +6,8 @@
  */
 type SiteConfig = {
   name: string;
+  legalName: string;
+  email: string;
   tagline: string;
   whatsapp: string;
   phone: string;
@@ -19,6 +21,10 @@ type SiteConfig = {
 
 export const site: SiteConfig = {
   name: "Daybook",
+  /** Registered business name for the policy pages (Razorpay checks it). Falls back to `name`. */
+  legalName: "",
+  /** Public contact email shown on the Contact and policy pages. */
+  email: "",
   /** Eyebrow line in the hero, e.g. "Nail studio · Gurugram". */
   tagline: "Nail studio · Delhi NCR",
   /** WhatsApp number in international format without "+", e.g. "919876543210". */

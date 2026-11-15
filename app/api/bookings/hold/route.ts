@@ -3,6 +3,7 @@ import { indianMobileSchema } from "@/lib/phone";
 import { isDateKey } from "@/lib/time";
 import { AvailabilityError } from "@/server/availability-query";
 import { createHold, HoldError } from "@/server/holds";
+import { clientIp, hitRateLimit, LIMITS, tooManyRequests } from "@/server/rate-limit";
 
 /**
  * POST /api/bookings/hold
@@ -33,6 +34,10 @@ const bodySchema = z.object({
 const noStore = { "Cache-Control": "no-store" };
 
 export async function POST(request: Request) {
+  // Each hold blocks a slot for a few minutes, so this is the endpoint bots would abuse.
+  const byIp = await hitRateLimit(`hold:ip:${clientIp(request)}`, LIMITS.holdPerIp);
+  if (!byIp.allowed) return tooManyRequests(byIp);
+
   let json: unknown;
   try {
     json = await request.json();
@@ -48,6 +53,10 @@ export async function POST(request: Request) {
       { status: 400, headers: noStore },
     );
   }
+
+  // Keyed by the normalised number, so reformatting it doesn't get around the limit.
+  const byPhone = await hitRateLimit(`hold:phone:${parsed.data.customer.phone}`, LIMITS.holdPerPhone);
+  if (!byPhone.allowed) return tooManyRequests(byPhone, "Too many booking attempts for this number. Please try again later or call the studio.");
 
   const { staffId, notes, ...rest } = parsed.data;
   try {
