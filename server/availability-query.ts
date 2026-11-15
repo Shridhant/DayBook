@@ -14,6 +14,9 @@ import {
  * Always fresh: never cache (AGENTS.md §5).
  */
 
+/** How far ahead the front desk can book. */
+const ADMIN_WINDOW_DAYS = 365;
+
 export class AvailabilityError extends Error {
   constructor(
     public readonly code: "unknown_service" | "unknown_staff" | "staff_not_qualified",
@@ -40,9 +43,11 @@ export async function getAvailability(params: {
    * releases their old hold in the same transaction, so it mustn't block their new choice.
    */
   ignoreHoldsOfPhone?: string;
+  /** Admin bookings (walk-ins, phone): no lead time and a long window; everything else still applies. */
+  forAdmin?: boolean;
   now?: Date;
 }): Promise<AvailabilityResult> {
-  const { date, serviceIds, staffId, ignoreHoldsOfPhone } = params;
+  const { date, serviceIds, staffId, ignoreHoldsOfPhone, forAdmin } = params;
   const now = params.now ?? new Date();
   const weekday = weekdayOf(date);
   const day = istDayRange(date);
@@ -125,8 +130,8 @@ export async function getAvailability(params: {
     durationMin,
     rules: {
       slotIntervalMin: settings.slot_interval_min,
-      leadTimeMin: settings.lead_time_min,
-      bookingWindowDays: settings.booking_window_days,
+      leadTimeMin: forAdmin ? 0 : settings.lead_time_min,
+      bookingWindowDays: forAdmin ? ADMIN_WINDOW_DAYS : settings.booking_window_days,
     },
     openingHours: opening,
     closed: Boolean(closure),

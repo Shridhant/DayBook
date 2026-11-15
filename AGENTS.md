@@ -69,6 +69,9 @@ npm test               # vitest
 npm run db:migrate     # dbmate up
 npm run db:new -- name # dbmate new <name>
 npm run db:seed        # load db/seed.sql (dev only)
+npm run db:test:prepare        # apply migrations to the test database
+npm run admin:create-user -- --role owner --name "Name" --email you@example.com   # prompts for a hidden password
+npm run auth:schema            # print the SQL Better Auth expects (use it to write migrations after upgrades)
 ```
 
 Before you call a task done, run **typecheck, lint and tests**, and report the result honestly.
@@ -90,6 +93,9 @@ app/
     webhooks/razorpay/ source of truth for payment state
     auth/[...all]/     Better Auth handler
 components/ui/         design-system components (see /kit in dev for every component)
+components/site/       landing-page sections
+components/booking/    customer booking flow
+components/admin/      admin shell, calendar, booking panel, forms
 components/            other shared UI (no data fetching, no secrets)
 server/                domain logic, server-only (availability, pricing, bookings, payments)
 lib/                   small utilities: db.ts, env.ts, time.ts (IST), money.ts, razorpay.ts, auth.ts
@@ -220,6 +226,9 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - Staff queries are always scoped `where staff_id = <session staff_id>`. Customer phone numbers are hidden from staff unless a setting allows it.
 - Only `owner` can refund, change prices, change booking-amount settings, or manage users.
 - Rate-limit login and any OTP endpoints. Firing a staff member = deactivate the user and delete their sessions.
+- Better Auth only accepts requests whose Origin matches `SITE_URL`. Set `SITE_URL` to the real public origin in every environment, or login fails with `INVALID_ORIGIN`.
+- Better Auth's tables (`users`, `sessions`, `accounts`, `verifications`, `rate_limits`) are created by dbmate migrations, never by Better Auth itself. Their naming lives in `lib/auth-schema.ts`.
+- Pure rules that both the server and the UI need (e.g. `lib/booking-status.ts`) live in `lib/`, not `server/`.
 
 ---
 

@@ -48,6 +48,27 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: accounts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.accounts (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    account_id text NOT NULL,
+    provider_id text NOT NULL,
+    user_id uuid NOT NULL,
+    access_token text,
+    refresh_token text,
+    id_token text,
+    access_token_expires_at timestamp with time zone,
+    refresh_token_expires_at timestamp with time zone,
+    scope text,
+    password text,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone NOT NULL
+);
+
+
+--
 -- Name: booking_items; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -214,6 +235,18 @@ CREATE TABLE public.portfolio_items (
 
 
 --
+-- Name: rate_limits; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.rate_limits (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    key text NOT NULL,
+    count integer NOT NULL,
+    last_request bigint NOT NULL
+);
+
+
+--
 -- Name: salon_closures; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -271,6 +304,22 @@ CREATE TABLE public.services (
     CONSTRAINT services_duration_min_check CHECK (((duration_min > 0) AND (((duration_min)::integer % 5) = 0))),
     CONSTRAINT services_price_paise_check CHECK ((price_paise >= 0)),
     CONSTRAINT services_slug_check CHECK ((slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'::text))
+);
+
+
+--
+-- Name: sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sessions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    token text NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone NOT NULL,
+    ip_address text,
+    user_agent text,
+    user_id uuid NOT NULL
 );
 
 
@@ -384,6 +433,47 @@ CREATE TABLE public.testimonials (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT testimonials_rating_check CHECK (((rating >= 1) AND (rating <= 5)))
 );
+
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.users (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    email text NOT NULL,
+    email_verified boolean DEFAULT false NOT NULL,
+    image text,
+    role text DEFAULT 'staff'::text NOT NULL,
+    staff_id uuid,
+    active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT users_role_check CHECK ((role = ANY (ARRAY['owner'::text, 'receptionist'::text, 'staff'::text])))
+);
+
+
+--
+-- Name: verifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.verifications (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    identifier text NOT NULL,
+    value text NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: accounts accounts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.accounts
+    ADD CONSTRAINT accounts_pkey PRIMARY KEY (id);
 
 
 --
@@ -507,6 +597,22 @@ ALTER TABLE ONLY public.portfolio_items
 
 
 --
+-- Name: rate_limits rate_limits_key_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rate_limits
+    ADD CONSTRAINT rate_limits_key_key UNIQUE (key);
+
+
+--
+-- Name: rate_limits rate_limits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rate_limits
+    ADD CONSTRAINT rate_limits_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: salon_closures salon_closures_date_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -560,6 +666,22 @@ ALTER TABLE ONLY public.services
 
 ALTER TABLE ONLY public.services
     ADD CONSTRAINT services_slug_key UNIQUE (slug);
+
+
+--
+-- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sessions sessions_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT sessions_token_key UNIQUE (token);
 
 
 --
@@ -627,6 +749,45 @@ ALTER TABLE ONLY public.testimonials
 
 
 --
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key UNIQUE (email);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_staff_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_staff_id_key UNIQUE (staff_id);
+
+
+--
+-- Name: verifications verifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.verifications
+    ADD CONSTRAINT verifications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: accounts_user_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX accounts_user_id_idx ON public.accounts USING btree (user_id);
+
+
+--
 -- Name: booking_items_booking_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -690,6 +851,13 @@ CREATE INDEX services_category_idx ON public.services USING btree (category_id, 
 
 
 --
+-- Name: sessions_user_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX sessions_user_id_idx ON public.sessions USING btree (user_id);
+
+
+--
 -- Name: staff_leave_lookup_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -701,6 +869,13 @@ CREATE INDEX staff_leave_lookup_idx ON public.staff_leave USING btree (staff_id,
 --
 
 CREATE INDEX staff_services_service_idx ON public.staff_services USING btree (service_id);
+
+
+--
+-- Name: verifications_identifier_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX verifications_identifier_idx ON public.verifications USING btree (identifier);
 
 
 --
@@ -781,6 +956,14 @@ CREATE TRIGGER testimonials_updated_at BEFORE UPDATE ON public.testimonials FOR 
 
 
 --
+-- Name: accounts accounts_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.accounts
+    ADD CONSTRAINT accounts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: booking_items booking_items_booking_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -837,6 +1020,14 @@ ALTER TABLE ONLY public.services
 
 
 --
+-- Name: sessions sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: staff_leave staff_leave_staff_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -869,6 +1060,14 @@ ALTER TABLE ONLY public.staff_shifts
 
 
 --
+-- Name: users users_staff_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_staff_id_fkey FOREIGN KEY (staff_id) REFERENCES public.staff(id) ON DELETE SET NULL;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -883,4 +1082,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261115120000'),
     ('20261115120100'),
     ('20261115120200'),
-    ('20261115120300');
+    ('20261115120300'),
+    ('20261116120000');

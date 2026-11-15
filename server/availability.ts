@@ -18,7 +18,9 @@ export type MinuteRange = { start: number; end: number };
 /** Real instants, end-exclusive. */
 export type InstantRange = { start: Date; end: Date };
 
-export type BookingStatus = "pending" | "confirmed" | "completed" | "no_show" | "cancelled" | "expired";
+import type { BookingStatus } from "@/lib/booking-status";
+
+export type { BookingStatus };
 
 export type ExistingBooking = InstantRange & { status: BookingStatus; holdExpiresAt: Date | null };
 

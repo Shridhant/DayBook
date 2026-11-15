@@ -16,14 +16,18 @@
     "db:status": "dbmate --env-file .env.local -e DATABASE_MIGRATION_URL status",
     "db:new": "dbmate new",
     "db:seed": "node --env-file=.env.local scripts/db-seed.mjs",
-    "db:test:prepare": "dbmate --env-file .env.local -e DATABASE_MIGRATION_URL_TEST --no-dump-schema up"
+    "db:test:prepare": "dbmate --env-file .env.local -e DATABASE_MIGRATION_URL_TEST --no-dump-schema up",
+    "auth:schema": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/auth-schema-sql.mts",
+    "admin:create-user": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/create-user.mts"
   },
   "dependencies": {
+    "better-auth": "^1.7.25",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.73.0",
     "motion": "^14.14.0",
     "next": "16.4.6",
+    "pg": "^8.23.1",
     "postgres": "^4.1.1",
     "radix-ui": "^1.8.1",
     "react": "19.3.0",
@@ -35,6 +39,7 @@
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

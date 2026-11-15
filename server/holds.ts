@@ -1,11 +1,12 @@
 import "server-only";
-import { randomInt } from "node:crypto";
-import postgres from "postgres";
 import { sql } from "@/lib/db";
 import type { Paise } from "@/lib/money";
 import type { DateKey } from "@/lib/time";
-import { AvailabilityError, getAvailability } from "./availability-query";
+import { getAvailability } from "./availability-query";
+import { insertBooking, loadServicesInOrder } from "./booking-insert";
 import { bookingAmount, totalPrice, type BookingAmountSettings } from "./pricing";
+
+export { generateBookingCode } from "./booking-insert";
 
 /**
  * Slot holds (AGENTS.md §7 "Booking status lifecycle"). A hold is a `pending` booking that blocks
@@ -48,27 +49,6 @@ export class HoldError extends Error {
   }
 }
 
-/* ---------- Booking codes ---------- */
-
-// No 0/O/1/I/L, so codes read cleanly over the phone and on WhatsApp.
-const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-
-export function generateBookingCode(length = 6): string {
-  let code = "DB-";
-  for (let i = 0; i < length; i++) code += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
-  return code;
-}
-
-function isPgError(error: unknown, code: string, constraint?: string): boolean {
-  return (
-    error instanceof postgres.PostgresError &&
-    error.code === code &&
-    (constraint === undefined || error.constraint_name === constraint)
-  );
-}
-
-/* ---------- Create hold ---------- */
-
 export async function createHold(request: HoldRequest): Promise<Hold> {
   // 1. Fresh availability. This applies every rule (qualification, shifts, leave, lead time,
   //    window) and ranks technicians for "Any available".
@@ -87,15 +67,7 @@ export async function createHold(request: HoldRequest): Promise<Hold> {
   const [settings] = await sql<
     { booking_amount_type: "fixed" | "percent"; booking_amount_fixed_paise: number; booking_amount_percent: number; hold_minutes: number }[]
   >`select booking_amount_type, booking_amount_fixed_paise, booking_amount_percent, hold_minutes from settings`;
-  const rows = await sql<
-    { id: string; name: string; price_paise: number; duration_min: number; booking_amount_override_paise: number | null }[]
-  >`select id, name, price_paise, duration_min, booking_amount_override_paise
-    from services where active and id in ${sql(request.serviceIds)}`;
-  const services = request.serviceIds.map((id) => rows.find((r) => r.id === id));
-  if (services.some((s) => s === undefined)) {
-    throw new AvailabilityError("unknown_service", "One or more services are unavailable.");
-  }
-  const items = services.filter((s): s is NonNullable<typeof s> => s !== undefined);
+  const items = await loadServicesInOrder(request.serviceIds);
 
   const priced = items.map((s) => ({ pricePaise: s.price_paise, bookingAmountOverridePaise: s.booking_amount_override_paise }));
   const amountSettings: BookingAmountSettings =
@@ -105,8 +77,7 @@ export async function createHold(request: HoldRequest): Promise<Hold> {
   const total = totalPrice(priced);
   const dueNow = bookingAmount(priced, amountSettings);
 
-  // 3. Insert inside a transaction. Candidates are tried in ranked order; if one was taken a moment
-  //    ago (exclusion violation), the next free technician gets the booking.
+  // 3. Insert inside a transaction; candidates are tried in ranked order.
   return sql.begin(async (tx) => {
     // Release lapsed holds so they stop blocking the constraint.
     await tx`update bookings set status = 'expired'
@@ -121,52 +92,35 @@ export async function createHold(request: HoldRequest): Promise<Hold> {
     await tx`update bookings set status = 'expired'
              where customer_id = ${customer.id} and status = 'pending'`;
 
-    for (const staffId of slot.staffIds) {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const code = generateBookingCode();
-        try {
-          const booking = await tx.savepoint(async (sp) => {
-            const [row] = await sp<{ id: string; hold_expires_at: Date }[]>`
-              insert into bookings (code, customer_id, staff_id, starts_at, ends_at, status, source,
-                                    total_paise, amount_due_now_paise, hold_expires_at, notes)
-              values (${code}, ${customer.id}, ${staffId}, ${slot.startsAt}, ${slot.endsAt}, 'pending', 'online',
-                      ${total}, ${dueNow}, now() + make_interval(mins => ${settings.hold_minutes}),
-                      ${request.notes ?? null})
-              returning id, hold_expires_at`;
-            await sp`
-              insert into booking_items ${sp(
-                items.map((s, position) => ({
-                  booking_id: row.id,
-                  service_id: s.id,
-                  name_snapshot: s.name,
-                  price_snapshot_paise: s.price_paise,
-                  duration_snapshot_min: s.duration_min,
-                  position,
-                })),
-              )}`;
-            return row;
-          });
-
-          const [staff] = await tx<{ name: string }[]>`select name from staff where id = ${staffId}`;
-          return {
-            bookingId: booking.id,
-            code,
-            staff: { id: staffId, name: staff.name },
-            startsAt: slot.startsAt,
-            endsAt: slot.endsAt,
-            holdExpiresAt: booking.hold_expires_at,
-            totalPaise: total,
-            amountDueNowPaise: dueNow,
-            items: items.map((s) => ({ serviceId: s.id, name: s.name, pricePaise: s.price_paise, durationMin: s.duration_min })),
-          };
-        } catch (error) {
-          if (isPgError(error, "23505", "bookings_code_key")) continue; // code collision: new code
-          if (isPgError(error, "23P01", "bookings_no_overlap")) break; // taken: next technician
-          throw error;
-        }
-      }
+    const booking = await insertBooking(tx, {
+      customerId: customer.id,
+      candidateStaffIds: slot.staffIds,
+      startsAt: slot.startsAt,
+      endsAt: slot.endsAt,
+      status: "pending",
+      source: "online",
+      totalPaise: total,
+      amountDueNowPaise: dueNow,
+      holdMinutes: settings.hold_minutes,
+      notes: request.notes ?? null,
+      createdByUserId: null,
+      items,
+    });
+    if (!booking?.holdExpiresAt) {
+      throw new HoldError("slot_taken", "Someone just booked that time. Please pick another slot.");
     }
 
-    throw new HoldError("slot_taken", "Someone just booked that time. Please pick another slot.");
+    const [staff] = await tx<{ name: string }[]>`select name from staff where id = ${booking.staffId}`;
+    return {
+      bookingId: booking.id,
+      code: booking.code,
+      staff: { id: booking.staffId, name: staff.name },
+      startsAt: slot.startsAt,
+      endsAt: slot.endsAt,
+      holdExpiresAt: booking.holdExpiresAt,
+      totalPaise: total,
+      amountDueNowPaise: dueNow,
+      items: items.map((s) => ({ serviceId: s.id, name: s.name, pricePaise: s.price_paise, durationMin: s.duration_min })),
+    };
   });
 }

@@ -17,6 +17,8 @@ const schema = z.object({
   RAZORPAY_KEY_ID: optional(z.string().regex(/^rzp_(test|live)_\w+$/, "Expected rzp_test_… or rzp_live_…")),
   RAZORPAY_KEY_SECRET: optional(z.string().min(8)),
   RAZORPAY_WEBHOOK_SECRET: optional(z.string().min(8)),
+  // Signs admin session cookies. Required in production (checked below).
+  BETTER_AUTH_SECRET: optional(z.string().min(32, "Use at least 32 characters (openssl rand -base64 32)")),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -24,6 +26,10 @@ const parsed = schema.safeParse(process.env);
 if (!parsed.success) {
   const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
   throw new Error(`Invalid environment variables:\n${issues}\nCheck .env.local against .env.example.`);
+}
+
+if (parsed.data.NODE_ENV === "production" && !parsed.data.BETTER_AUTH_SECRET) {
+  throw new Error("BETTER_AUTH_SECRET must be set in production.");
 }
 
 export const env = parsed.data;
