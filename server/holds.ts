@@ -4,7 +4,7 @@ import type { Paise } from "@/lib/money";
 import type { DateKey } from "@/lib/time";
 import { getAvailability } from "./availability-query";
 import { insertBooking, loadServicesInOrder } from "./booking-insert";
-import { bookingAmount, totalPrice, type BookingAmountSettings } from "./pricing";
+import { bookingAmount, totalPrice, type BookingAmountSettings } from "@/lib/pricing";
 
 export { generateBookingCode } from "./booking-insert";
 

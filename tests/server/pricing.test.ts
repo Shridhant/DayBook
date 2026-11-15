@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingAmount, roundToTenRupees, totalPrice, type PricedService } from "@/server/pricing";
+import { bookingAmount, roundToTenRupees, totalPrice, type PricedService } from "@/lib/pricing";
 
 const svc = (rupees: number, overrideRupees: number | null = null): PricedService => ({
   pricePaise: rupees * 100,

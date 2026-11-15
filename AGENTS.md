@@ -178,7 +178,7 @@ users / sessions  managed by Better Auth; app role on user: owner | receptionist
 
 ### Booking amount
 - Owner sets either a **fixed amount** or a **percentage** of the total in `settings`; a service may have `booking_amount_override_paise`. For multi-service bookings, use the largest applicable override, or the settings rule if none applies. Never exceed the total.
-- **Percentage amounts round to the nearest ₹10** (half up: ₹246.80 → ₹250, ₹245 → ₹250, ₹244.99 → ₹240), so customers pay friendly UPI amounts. Fixed amounts and overrides are used as set. A positive amount never rounds down to ₹0 (it becomes ₹10). If rounding up would exceed the total, charge the total. Implemented in `server/pricing.ts`. *(Decided by the owner, 2026-11-15.)*
+- **Percentage amounts round to the nearest ₹10** (half up: ₹246.80 → ₹250, ₹245 → ₹250, ₹244.99 → ₹240), so customers pay friendly UPI amounts. Fixed amounts and overrides are used as set. A positive amount never rounds down to ₹0 (it becomes ₹10). If rounding up would exceed the total, charge the total. Implemented in `lib/pricing.ts`. *(Decided by the owner, 2026-11-15.)*
 - The computed amount is **snapshotted** on the booking (`amount_due_now_paise`). Changing settings never alters existing bookings.
 
 ### Availability
@@ -225,6 +225,9 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - **Every admin/staff route handler checks the session and role on the server.** `proxy.ts` (formerly middleware) is only a convenience redirect, not the security boundary.
 - Staff queries are always scoped `where staff_id = <session staff_id>`. Customer phone numbers are hidden from staff unless a setting allows it.
 - Only `owner` can refund, change prices, change booking-amount settings, or manage users.
+- **Role split (decided by the owner, 2026-11-16):** `owner` = everything. `receptionist` (front desk) = bookings, walk-ins, artists' **leave**, **closures**, and website content (**portfolio, Instagram, reviews**); artist profiles/skills/shifts are read-only for them. Owner-only: services and prices, settings and opening hours, artist profiles/skills/shifts, team logins. Constants: `OWNER_ONLY` / `FRONT_DESK` in `server/admin/http.ts`.
+- Every admin API route is wrapped in `adminRoute({ roles, body }, handler)` (`server/admin/http.ts`): it checks the role, zod-parses the body, validates `[id]`, and maps `AdminError` to a clean JSON error. Admin writes that affect the public site call `refreshPublic("catalog" | "content")`.
+- Changes that would strand existing bookings (shifts, leave, closures) return `{ saved: false, clashes }` first; the UI shows them and resends with `force: true`.
 - Rate-limit login and any OTP endpoints. Firing a staff member = deactivate the user and delete their sessions.
 - Better Auth only accepts requests whose Origin matches `SITE_URL`. Set `SITE_URL` to the real public origin in every environment, or login fails with `INVALID_ORIGIN`.
 - Better Auth's tables (`users`, `sessions`, `accounts`, `verifications`, `rate_limits`) are created by dbmate migrations, never by Better Auth itself. Their naming lives in `lib/auth-schema.ts`.
@@ -237,7 +240,8 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - zod-validate every request body and query param.
 - Parameterised SQL only.
 - No secrets in client bundles, logs, or git. `.env*.local` is gitignored; `.env.example` lists every variable with no values.
-- Uploaded images: check MIME type and size, re-encode/resize server-side, random filenames, never trust the original name.
+- Uploaded images: check MIME type and size, re-encode/resize server-side, random filenames, never trust the original name. Implemented in `server/uploads.ts`: decoded with sharp (not trusted by extension), resized to ≤1600px, WebP, **all metadata stripped (incl. GPS)**, stored on the VPS disk under `UPLOAD_DIR` (default `./storage/uploads`, gitignored) and served by `app/uploads/[...path]/route.ts`. **Back up `UPLOAD_DIR` together with the database.**
+- File-system calls on runtime paths (like `UPLOAD_DIR`) need `/*turbopackIgnore: true*/`, or the build traces the whole project into the deploy output.
 - Instagram embeds: accept only `https://www.instagram.com/(p|reel)/<id>/` URLs; validate before storing.
 - Return generic error messages to clients; log details server-side.
 - Add CAPTCHA (Cloudflare Turnstile) to the public booking hold endpoint if spam appears.

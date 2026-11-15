@@ -1,6 +1,21 @@
 "use client";
 
-import { CalendarDays, ExternalLink, ListChecks, Menu as MenuIcon, Plus, type LucideIcon } from "lucide-react";
+import {
+  CalendarDays,
+  CalendarOff,
+  ExternalLink,
+  Images,
+  KeyRound,
+  ListChecks,
+  Menu as MenuIcon,
+  MessageSquareQuote,
+  Plus,
+  Scissors,
+  Settings,
+  Users,
+  Video,
+  type LucideIcon,
+} from "lucide-react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -16,11 +31,39 @@ import { ThemeToggle } from "./theme";
 
 export type ShellUser = { name: string; email: string; role: string };
 
-const NAV: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/admin/today", label: "Calendar", icon: CalendarDays },
-  { href: "/admin/bookings", label: "Bookings", icon: ListChecks },
-  { href: "/admin/bookings/new", label: "New booking", icon: Plus },
+type NavItem = { href: string; label: string; icon: LucideIcon; ownerOnly?: boolean };
+
+/** Sidebar, grouped. Owner-only items are hidden from the front desk (the server also enforces it). */
+const SECTIONS: { title: string | null; items: NavItem[] }[] = [
+  {
+    title: null,
+    items: [
+      { href: "/admin/today", label: "Calendar", icon: CalendarDays },
+      { href: "/admin/bookings", label: "Bookings", icon: ListChecks },
+      { href: "/admin/bookings/new", label: "New booking", icon: Plus },
+    ],
+  },
+  {
+    title: "Salon",
+    items: [
+      { href: "/admin/staff", label: "Artists", icon: Users },
+      { href: "/admin/services", label: "Services & prices", icon: Scissors, ownerOnly: true },
+      { href: "/admin/closures", label: "Closures", icon: CalendarOff },
+      { href: "/admin/settings", label: "Settings", icon: Settings, ownerOnly: true },
+    ],
+  },
+  {
+    title: "Website",
+    items: [
+      { href: "/admin/portfolio", label: "Portfolio", icon: Images },
+      { href: "/admin/instagram", label: "Instagram", icon: Video },
+      { href: "/admin/reviews", label: "Reviews", icon: MessageSquareQuote },
+    ],
+  },
+  { title: "Admin", items: [{ href: "/admin/team", label: "Team logins", icon: KeyRound, ownerOnly: true }] },
 ];
+
+const NAV = SECTIONS.flatMap((s) => s.items);
 
 const roleLabel: Record<string, string> = { owner: "Owner", receptionist: "Front desk", staff: "Artist" };
 
@@ -31,14 +74,18 @@ function isActive(pathname: string, href: string) {
   return best?.href === href;
 }
 
-function NavList({ onNavigate }: { onNavigate?: () => void }) {
+function NavList({ role, onNavigate }: { role: string; onNavigate?: () => void }) {
   const pathname = usePathname();
   const reduce = useReducedMotion();
   const groupId = useId();
+  const sections = SECTIONS.map((s) => ({ ...s, items: s.items.filter((i) => !i.ownerOnly || role === "owner") })).filter((s) => s.items.length);
   return (
     <LayoutGroup id={groupId}>
+      {sections.map((section, si) => (
+      <div key={section.title ?? si} className={si > 0 ? "mt-4" : undefined}>
+      {section.title && <p className="flex h-5 items-center px-2.5 text-[11px] font-medium text-muted">{section.title}</p>}
       <ul className="space-y-0.5">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {section.items.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
           return (
             <li key={href}>
@@ -67,6 +114,8 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
       </ul>
+      </div>
+      ))}
     </LayoutGroup>
   );
 }
@@ -84,7 +133,7 @@ function SidebarBody({ user, brand, onNavigate }: { user: ShellUser; brand: stri
         </div>
       </div>
       <nav aria-label="Admin" className="flex-1 overflow-y-auto px-2 py-2">
-        <NavList onNavigate={onNavigate} />
+        <NavList role={user.role} onNavigate={onNavigate} />
         <div className="mt-4 border-t border-line pt-3">
           <a
             href="/"

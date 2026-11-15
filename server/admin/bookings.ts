@@ -5,7 +5,7 @@ import type { BookingStatus } from "../availability";
 import { getAvailability } from "../availability-query";
 import { insertBooking, loadServicesInOrder } from "../booking-insert";
 import { nextStatus, type AdminAction } from "@/lib/booking-status";
-import { totalPrice } from "../pricing";
+import { totalPrice } from "@/lib/pricing";
 
 /**
  * Admin booking operations: day schedule, bookings list, status actions, walk-in/phone bookings.

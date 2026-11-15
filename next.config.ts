@@ -1,9 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  images: {
+    // Only our own image folders may go through the optimizer (no arbitrary URLs, no query strings).
+    localPatterns: [
+      { pathname: "/uploads/**", search: "" },
+      { pathname: "/placeholders/**", search: "" },
+    ],
+  },
   turbopack: {
     rules: {
       "*.css": {

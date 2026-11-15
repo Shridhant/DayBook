@@ -1,9 +1,9 @@
-import "server-only";
-import { percentOf, sumPaise, type Paise } from "@/lib/money";
+import { percentOf, sumPaise, type Paise } from "./money";
 
 /**
  * Prices and the booking amount (AGENTS.md §7 "Booking amount").
- * Always computed on the server from database values, never from client input.
+ * Always computed on the server from database values, never from client input. Pure, so the
+ * admin settings screen reuses it for its live example.
  */
 
 export type BookingAmountSettings =

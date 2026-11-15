@@ -17,6 +17,8 @@ const schema = z.object({
   RAZORPAY_KEY_ID: optional(z.string().regex(/^rzp_(test|live)_\w+$/, "Expected rzp_test_… or rzp_live_…")),
   RAZORPAY_KEY_SECRET: optional(z.string().min(8)),
   RAZORPAY_WEBHOOK_SECRET: optional(z.string().min(8)),
+  // Uploaded photos live here on the VPS disk (AGENTS.md §9). Include it in backups.
+  UPLOAD_DIR: optional(z.string().min(1)).transform((v) => v ?? "./storage/uploads"),
   // Signs admin session cookies. Required in production (checked below).
   BETTER_AUTH_SECRET: optional(z.string().min(32, "Use at least 32 characters (openssl rand -base64 32)")),
 });

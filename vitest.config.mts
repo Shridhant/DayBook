@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "vite";
 import { defineConfig } from "vitest/config";
@@ -15,6 +17,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    setupFiles: ["tests/setup.ts"],
     // Loads .env.local etc. Tests must only ever use the *_TEST database URLs.
     // TZ is deliberately NOT India: proves the time helpers never depend on the machine's timezone.
     // DATABASE_URL is swapped for the test database so code using lib/db.ts can never reach dev data.
@@ -26,6 +29,8 @@ export default defineConfig({
       RAZORPAY_KEY_ID: "rzp_test_dummy123",
       RAZORPAY_KEY_SECRET: "test_key_secret_123",
       RAZORPAY_WEBHOOK_SECRET: "test_webhook_secret_123",
+      // Uploads in tests go to a throwaway folder, never the real storage.
+      UPLOAD_DIR: join(tmpdir(), "daybook-test-uploads"),
     },
   },
 });
