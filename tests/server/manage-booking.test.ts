@@ -25,7 +25,7 @@ beforeAll(async () => {
                               values (${cat.id}, 'Gel', ${`${tag}-gel`}, 120000, 60) returning id`;
   const [a] = await testSql`insert into staff (name, slug, sort_order) values ('Meera MB', ${`${tag}-a`}, 1) returning id`;
   const [b] = await testSql`insert into staff (name, slug, sort_order) values ('Riya MB', ${`${tag}-b`}, 2) returning id`;
-  const [c] = await testSql`insert into customers (name, phone, email) values ('Manager', '8100000009', 'manager@example.com') returning id`;
+  const [c] = await testSql`insert into customers (name, phone, email) values ('Manager', '8100000009', 'manager@mail.daybook-tests.in') returning id`;
   for (const s of [a.id, b.id]) {
     await testSql`insert into staff_services (staff_id, service_id) values (${s}, ${gel.id})`;
     await testSql`insert into staff_shifts (staff_id, weekday, starts_at, ends_at) values (${s}, ${WEEKDAY}, '11:00', '20:00')`;

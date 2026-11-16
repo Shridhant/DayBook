@@ -2,6 +2,7 @@ import "server-only";
 import { after } from "next/server";
 import nodemailer, { type Transporter } from "nodemailer";
 import { sql } from "@/lib/db";
+import { isTestOnlyAddress } from "@/lib/email-address";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 
@@ -72,6 +73,11 @@ export async function processEmailOutbox(options: { limit?: number; send?: (row:
   let sent = 0;
   let failed = 0;
   for (const row of rows) {
+    if (isTestOnlyAddress(row.to_email)) {
+      // Queued before such addresses were skipped (demo data): drop it rather than bounce.
+      await sql`update email_outbox set status = 'failed', last_error = 'Test-only address, not sent' where id = ${row.id}`;
+      continue;
+    }
     try {
       await send(row);
       await sql`update email_outbox set status = 'sent', sent_at = now(), last_error = null where id = ${row.id}`;

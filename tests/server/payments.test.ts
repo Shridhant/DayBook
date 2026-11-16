@@ -25,7 +25,7 @@ let seq = 0;
 
 beforeAll(async () => {
   const [a] = await testSql`insert into staff (name, slug) values ('Pay A', ${`${tag}-a`}) returning id`;
-  const [c] = await testSql`insert into customers (name, phone, email) values ('Payer', ${PHONE}, 'payer@example.com') returning id`;
+  const [c] = await testSql`insert into customers (name, phone, email) values ('Payer', ${PHONE}, 'payer@mail.daybook-tests.in') returning id`;
   staffId = a.id;
   customerId = c.id;
 });
@@ -104,7 +104,7 @@ describe("startPayment", () => {
       orderId: `order_${tag}new`,
       amountPaise: 50000,
       keyId: "rzp_test_dummy123",
-      prefill: { name: "Payer", contact: `+91${PHONE}`, email: "payer@example.com" },
+      prefill: { name: "Payer", contact: `+91${PHONE}`, email: "payer@mail.daybook-tests.in" },
     });
     const again = await startPayment(bookingId);
     expect(again).toMatchObject({ kind: "order", orderId: `order_${tag}new` });

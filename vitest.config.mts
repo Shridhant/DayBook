@@ -49,7 +49,7 @@ export default defineConfig({
       SMTP_USER: "",
       SMTP_PASS: "",
       EMAIL_FROM: "",
-      OWNER_NOTIFY_EMAILS: "owner-a@daybook.test, owner-b@daybook.test",
+      OWNER_NOTIFY_EMAILS: "owner-a@mail.daybook-tests.in, owner-b@mail.daybook-tests.in",
     },
   },
 });

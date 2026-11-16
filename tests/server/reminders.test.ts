@@ -17,7 +17,7 @@ let seq = 0;
 
 beforeAll(async () => {
   const [a] = await testSql`insert into staff (name, slug) values ('Remind A', ${`${tag}-a`}) returning id`;
-  const [withEmail] = await testSql`insert into customers (name, phone, email) values ('Asha Remind', '8500000001', 'asha.remind@example.com') returning id`;
+  const [withEmail] = await testSql`insert into customers (name, phone, email) values ('Asha Remind', '8500000001', 'asha.remind@mail.daybook-tests.in') returning id`;
   const [noEmail] = await testSql`insert into customers (name, phone) values ('No Email', '8500000002') returning id`;
   Object.assign(ids, { staff: a.id, withEmail: withEmail.id, noEmail: noEmail.id });
 });
@@ -57,7 +57,7 @@ describe("appointment reminders", () => {
     const b = await booking(20);
     expect(await queueDueReminders(NOW)).toBe(1);
     const email = await reminderFor(b.id, b.startsAt);
-    expect(email).toMatchObject({ to_email: "asha.remind@example.com" });
+    expect(email).toMatchObject({ to_email: "asha.remind@mail.daybook-tests.in" });
     expect(email.subject).toMatch(/^Reminder: tomorrow at 6:30 am \(DB-Q\d+\)$/);
     expect(email.text_body).toContain("View or change booking: http");
     // Booked with a 24h cancel window and reminded 20h before: no longer free to change.

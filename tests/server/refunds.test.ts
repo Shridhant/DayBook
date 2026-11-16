@@ -18,7 +18,7 @@ let seq = 0;
 
 beforeAll(async () => {
   const [a] = await testSql`insert into staff (name, slug) values ('Refund A', ${`${tag}-a`}) returning id`;
-  const [c] = await testSql`insert into customers (name, phone, email) values ('Refundee', '8300000001', 'refundee@example.com') returning id`;
+  const [c] = await testSql`insert into customers (name, phone, email) values ('Refundee', '8300000001', 'refundee@mail.daybook-tests.in') returning id`;
   Object.assign(ids, { staff: a.id, customer: c.id });
 });
 

@@ -1,5 +1,6 @@
 import "server-only";
 import type { Sql, TransactionSql } from "postgres";
+import { isTestOnlyAddress } from "@/lib/email-address";
 import { env } from "@/lib/env";
 import { buildIcs } from "@/lib/ics";
 import { formatINR } from "@/lib/money";
@@ -70,6 +71,7 @@ async function addNotification(db: Db, n: { type: string; title: string; body: s
 }
 
 async function queueEmail(db: Db, e: { to: string; dedupeKey: string; content: EmailContent; ics?: string }) {
+  if (isTestOnlyAddress(e.to)) return; // demo customers: nobody to receive it, and a bounce hurts deliverability
   await db`
     insert into email_outbox (dedupe_key, to_email, subject, html, text_body, ics)
     values (${e.dedupeKey}, ${e.to}, ${e.content.subject}, ${e.content.html}, ${e.content.text}, ${e.ics ?? null})

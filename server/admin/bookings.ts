@@ -1,6 +1,6 @@
 import "server-only";
 import { sql } from "@/lib/db";
-import { istDayRange, timeToMinutes, toIst, weekdayOf, type DateKey } from "@/lib/time";
+import { istDayRange, istToday, timeToMinutes, toIst, weekdayOf, type DateKey } from "@/lib/time";
 import type { BookingStatus } from "../availability";
 import { getAvailability } from "../availability-query";
 import { insertBooking, loadServicesInOrder } from "../booking-insert";
@@ -39,6 +39,8 @@ export type AdminBooking = {
   staffName: string;
   customer: { name: string; phone: string };
   items: { name: string; pricePaise: number; durationMin: number }[];
+  /** Category of the first service, for colour-coding; `tone` is its position among categories. */
+  category: { name: string; tone: number } | null;
   totalPaise: number;
   amountDueNowPaise: number;
   /** Captured online, net of refunds. */
@@ -70,6 +72,7 @@ type BookingRow = {
   cancel_reason: string | null;
   hold_expires_at: Date | null;
   items: AdminBooking["items"] | null;
+  category: AdminBooking["category"];
   refunds: AdminRefund[] | null;
 };
 
@@ -83,6 +86,11 @@ const bookingColumns = sql`
   (select json_agg(json_build_object('name', i.name_snapshot, 'pricePaise', i.price_snapshot_paise,
                                      'durationMin', i.duration_snapshot_min) order by i.position)
    from booking_items i where i.booking_id = b.id) as items,
+  (select json_build_object('name', sc.name,
+                            'tone', (select count(*) from service_categories x
+                                     where (x.sort_order, x.id) < (sc.sort_order, sc.id))::int)
+   from booking_items i join services sv on sv.id = i.service_id join service_categories sc on sc.id = sv.category_id
+   where i.booking_id = b.id order by i.position limit 1) as category,
   (select json_agg(json_build_object('id', r.id, 'amountPaise', r.amount_paise, 'status', r.status, 'source', r.source,
                                      'reason', r.reason, 'failureReason', r.failure_reason, 'createdAt', r.created_at)
                    order by r.created_at)
@@ -108,6 +116,7 @@ function toAdminBooking(r: BookingRow): AdminBooking {
     staffName: r.staff_name,
     customer: { name: r.customer_name, phone: r.customer_phone },
     items: r.items ?? [],
+    category: r.category,
     totalPaise: r.total_paise,
     amountDueNowPaise: r.amount_due_now_paise,
     paidPaise: r.paid_paise,
@@ -190,8 +199,13 @@ export async function getDaySchedule(date: DateKey): Promise<DaySchedule> {
 
 /* ---------- Bookings list ---------- */
 
+/** upcoming: from today, soonest first · newest: most recently made first · latest: by date, latest first. */
+export const BOOKING_SORTS = ["upcoming", "newest", "latest"] as const;
+export type BookingSort = (typeof BOOKING_SORTS)[number];
+
 export type BookingFilters = {
   q?: string;
+  sort?: BookingSort;
   status?: BookingStatus | "active";
   from?: DateKey;
   to?: DateKey;
@@ -206,7 +220,9 @@ export async function listBookings(filters: BookingFilters): Promise<{ rows: Adm
   const digits = q?.replace(/\D/g, "");
   const conditions = [liveBookings];
 
+  const sort = filters.sort ?? "upcoming";
   if (filters.from) conditions.push(sql`b.starts_at >= ${istDayRange(filters.from).start}`);
+  else if (sort === "upcoming") conditions.push(sql`b.starts_at >= ${istDayRange(istToday()).start}`);
   if (filters.to) conditions.push(sql`b.starts_at < ${istDayRange(filters.to).end}`);
   if (filters.status === "active") conditions.push(sql`b.status in ('pending', 'confirmed')`);
   else if (filters.status) conditions.push(sql`b.status = ${filters.status}`);
@@ -226,7 +242,7 @@ export async function listBookings(filters: BookingFilters): Promise<{ rows: Adm
       select ${bookingColumns}
       from bookings b join staff st on st.id = b.staff_id join customers c on c.id = b.customer_id
       where ${where}
-      order by b.starts_at desc
+      order by ${sort === "upcoming" ? sql`b.starts_at asc` : sort === "newest" ? sql`b.created_at desc` : sql`b.starts_at desc`}, b.id
       limit ${PAGE_SIZE} offset ${(page - 1) * PAGE_SIZE}`,
     sql<{ total: number }[]>`
       select count(*)::int as total

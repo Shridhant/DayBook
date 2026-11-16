@@ -8,11 +8,17 @@ import { Input, NativeSelect } from "@/components/ui/input";
 import type { BookingStatus } from "@/lib/booking-status";
 import { isDateKey } from "@/lib/time";
 import { requirePageUser } from "@/server/admin/auth";
-import { listBookings, PAGE_SIZE, type BookingFilters } from "@/server/admin/bookings";
+import { BOOKING_SORTS, listBookings, PAGE_SIZE, type BookingFilters, type BookingSort } from "@/server/admin/bookings";
 
 export const metadata: Metadata = { title: "Bookings" };
 
 const STATUSES: BookingStatus[] = ["pending", "confirmed", "completed", "no_show", "cancelled"];
+
+const SORT_LABEL: Record<BookingSort, string> = {
+  upcoming: "Upcoming first",
+  newest: "Newest booked",
+  latest: "All, latest date",
+};
 
 function one(value: string | string[] | undefined) {
   return typeof value === "string" ? value : undefined;
@@ -22,8 +28,12 @@ export default async function BookingsPage({ searchParams }: PageProps<"/admin/b
   await requirePageUser();
   const sp = await searchParams;
   const status = one(sp.status);
+  const q = one(sp.q)?.slice(0, 80);
+  const sort = one(sp.sort);
   const filters: BookingFilters = {
-    q: one(sp.q)?.slice(0, 80),
+    q,
+    // A search looks across all dates unless a sort is picked.
+    sort: BOOKING_SORTS.includes(sort as BookingSort) ? (sort as BookingSort) : q ? "newest" : "upcoming",
     status: status === "active" || STATUSES.includes(status as BookingStatus) ? (status as BookingFilters["status"]) : undefined,
     from: isDateKey(one(sp.from)) ? one(sp.from) : undefined,
     to: isDateKey(one(sp.to)) ? one(sp.to) : undefined,
@@ -48,7 +58,7 @@ export default async function BookingsPage({ searchParams }: PageProps<"/admin/b
         }
       />
       <PageBody>
-        <form method="get" className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_auto]">
+        <form method="get" className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))_auto]">
           <Input name="q" defaultValue={filters.q} placeholder="Name, phone or booking code" aria-label="Search" type="search" />
           <NativeSelect name="status" defaultValue={filters.status ?? ""} aria-label="Status">
             <option value="">All statuses</option>
@@ -56,6 +66,13 @@ export default async function BookingsPage({ searchParams }: PageProps<"/admin/b
             {STATUSES.map((s) => (
               <option key={s} value={s}>
                 {STATUS_LABEL[s]}
+              </option>
+            ))}
+          </NativeSelect>
+          <NativeSelect name="sort" defaultValue={filters.sort} aria-label="Sort">
+            {BOOKING_SORTS.map((s) => (
+              <option key={s} value={s}>
+                {SORT_LABEL[s]}
               </option>
             ))}
           </NativeSelect>

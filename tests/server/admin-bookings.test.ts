@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "@/lib/db";
 import { addDays, istToday, timeToMinutes, weekdayOf } from "@/lib/time";
-import { applyBookingAction, createAdminBooking, getDaySchedule, listBookings } from "@/server/admin/bookings";
+import { applyBookingAction, createAdminBooking, getDaySchedule, listBookings, type AdminBooking } from "@/server/admin/bookings";
 import { cleanupBookingEvents, testSql } from "../helpers/test-db";
 
 /** Admin booking operations against the TEST database. Uses today+6 (its own weekday). */
@@ -108,5 +108,15 @@ describe("schedule and list", () => {
     expect(byPhone.total).toBe(2);
     const cancelled = await listBookings({ status: "cancelled", from: DATE, to: DATE });
     expect(cancelled.rows.map((b) => b.customer.phone)).toEqual([PHONES[3]]);
+  });
+
+  it("sorts soonest first by default, or by when the booking was made", async () => {
+    const mine = (rows: AdminBooking[]) => rows.filter((b) => PHONES.includes(b.customer.phone));
+    const upcoming = mine((await listBookings({ from: DATE, to: DATE })).rows);
+    expect(upcoming.map((b) => b.startsAt)).toEqual(upcoming.map((b) => b.startsAt).sort());
+
+    const latest = await walkIn("19:00", PHONES[1], "Made Last");
+    const newest = await listBookings({ sort: "newest", from: DATE, to: DATE });
+    expect(newest.rows[0].id).toBe(latest.id);
   });
 });

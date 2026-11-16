@@ -118,3 +118,20 @@
 /* Hidden scrollbar for snap carousels. DESIGN.md §11.2 */
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Calendar event colours, one per service category (DESIGN.md has no calendar palette; these are
+   soft tints with a strong bar and text, like a phone calendar). Tone 0 follows the salon's brand. */
+.cal-tone-0 { --tone-bg: var(--accent-soft); --tone-fg: var(--accent-hover); --tone-bar: var(--brand); }
+.cal-tone-1 { --tone-bg: #e4ecfd; --tone-fg: #1d4ed8; --tone-bar: #3b82f6; }
+.cal-tone-2 { --tone-bg: #f1e7fd; --tone-fg: #7e22ce; --tone-bar: #a855f7; }
+.cal-tone-3 { --tone-bg: #e1f5e8; --tone-fg: #15803d; --tone-bar: #22c55e; }
+.cal-tone-4 { --tone-bg: #fdeee3; --tone-fg: #c2410c; --tone-bar: #f97316; }
+.cal-tone-5 { --tone-bg: #ddf4f1; --tone-fg: #0f766e; --tone-bar: #14b8a6; }
+.cal-tone-muted { --tone-bg: var(--hover); --tone-fg: var(--text-muted); --tone-bar: var(--border); }
+
+.dark .cal-tone-0 { --tone-fg: color-mix(in srgb, var(--brand) 55%, white); }
+.dark .cal-tone-1 { --tone-bg: rgb(59 130 246 / 0.18); --tone-fg: #93c5fd; }
+.dark .cal-tone-2 { --tone-bg: rgb(168 85 247 / 0.18); --tone-fg: #d8b4fe; }
+.dark .cal-tone-3 { --tone-bg: rgb(34 197 94 / 0.16); --tone-fg: #86efac; }
+.dark .cal-tone-4 { --tone-bg: rgb(249 115 22 / 0.18); --tone-fg: #fdba74; }
+.dark .cal-tone-5 { --tone-bg: rgb(20 184 166 / 0.18); --tone-fg: #5eead4; }

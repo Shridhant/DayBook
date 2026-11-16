@@ -17,7 +17,7 @@ let seq = 0;
 
 beforeAll(async () => {
   const [st] = await testSql`insert into staff (name, slug) values ('Notify A', ${`${tag}-a`}) returning id`;
-  const [withEmail] = await testSql`insert into customers (name, phone, email) values ('Mira <b>Joshi</b>', '8500000001', 'mira@example.com') returning id`;
+  const [withEmail] = await testSql`insert into customers (name, phone, email) values ('Mira <b>Joshi</b>', '8500000001', 'mira@mail.daybook-tests.in') returning id`;
   const [noEmail] = await testSql`insert into customers (name, phone) values ('No Email', '8500000002') returning id`;
   const [u1] = await testSql`insert into users (name, email, role, created_at) values ('N1', ${`n1-${tag}@daybook.test`}, 'owner', now() - interval '1 day') returning id`;
   const [u2] = await testSql`insert into users (name, email, role, created_at) values ('N2', ${`n2-${tag}@daybook.test`}, 'receptionist', now() - interval '1 day') returning id`;
@@ -62,13 +62,13 @@ describe("onBookingConfirmed", () => {
     expect(note).toMatchObject({ type: "booking_confirmed", title: "New booking: Mira <b>Joshi</b>" });
 
     const mail = await outboxFor(id);
-    expect(mail.map((m) => m.to_email)).toEqual(["mira@example.com", "owner-a@daybook.test", "owner-b@daybook.test"]);
-    const customer = mail.find((m) => m.to_email === "mira@example.com");
+    expect(mail.map((m) => m.to_email)).toEqual(["mira@mail.daybook-tests.in", "owner-a@mail.daybook-tests.in", "owner-b@mail.daybook-tests.in"]);
+    const customer = mail.find((m) => m.to_email === "mira@mail.daybook-tests.in");
     expect(customer?.ics).toContain("BEGIN:VEVENT");
     // Customer-supplied text is escaped in HTML.
     expect(mail.every((m) => !m.html.includes("<b>Joshi</b>"))).toBe(true);
     // The owner email shows the full name (escaped); the customer email greets by first name only.
-    expect(mail.find((m) => m.to_email === "owner-a@daybook.test")?.html).toContain("Mira &lt;b&gt;Joshi&lt;/b&gt;");
+    expect(mail.find((m) => m.to_email === "owner-a@mail.daybook-tests.in")?.html).toContain("Mira &lt;b&gt;Joshi&lt;/b&gt;");
   });
 
   it("is idempotent: a retried webhook doesn't duplicate anything", async () => {
@@ -83,7 +83,7 @@ describe("onBookingConfirmed", () => {
   it("skips the customer email when they gave none, and skips front-desk bookings entirely", async () => {
     const online = await booking(ids.noEmail);
     await onBookingConfirmed(sql, online);
-    expect((await outboxFor(online)).map((m) => m.to_email)).toEqual(["owner-a@daybook.test", "owner-b@daybook.test"]);
+    expect((await outboxFor(online)).map((m) => m.to_email)).toEqual(["owner-a@mail.daybook-tests.in", "owner-b@mail.daybook-tests.in"]);
 
     const walkIn = await booking(ids.noEmail, "walk_in");
     await onBookingConfirmed(sql, walkIn);
@@ -127,7 +127,7 @@ describe("email outbox", () => {
   async function queue(key: string, createdAgo = "0 minutes") {
     await testSql`
       insert into email_outbox (dedupe_key, to_email, subject, html, text_body, created_at)
-      values (${key}, 'someone@example.com', ${key}, '<p>Hi</p>', 'Hi', now() - ${createdAgo}::interval)`;
+      values (${key}, 'someone@mail.daybook-tests.in', ${key}, '<p>Hi</p>', 'Hi', now() - ${createdAgo}::interval)`;
   }
   const row = async (key: string) => {
     const [r] = await testSql<{ status: string; attempts: number; last_error: string | null; due_in_min: number }[]>`
@@ -161,6 +161,16 @@ describe("email outbox", () => {
     await testSql`update email_outbox set attempts = ${MAX_ATTEMPTS - 1}, next_attempt_at = now() where dedupe_key = ${`${tag}-bad`}`;
     await processEmailOutbox({ send: async () => Promise.reject(new Error("still failing")) });
     expect((await row(`${tag}-bad`)).status).toBe("failed");
+  });
+
+  it("never sends to test-only addresses (demo customers)", async () => {
+    await testSql`
+      insert into email_outbox (dedupe_key, to_email, subject, html, text_body)
+      values (${`${tag}-demo`}, 'asha.k@example.com', 'x', '<p>x</p>', 'x')`;
+    let sent = 0;
+    await processEmailOutbox({ send: async () => void sent++ });
+    expect(sent).toBe(0);
+    expect(await row(`${tag}-demo`)).toMatchObject({ status: "failed", last_error: "Test-only address, not sent" });
   });
 
   it("expires mail older than a day instead of sending it late", async () => {

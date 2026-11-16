@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PageBody, PageHeader } from "@/components/admin/admin-shell";
 import { DayCalendar } from "@/components/admin/day-calendar";
 import { DayNav } from "@/components/admin/day-nav";
+import { WeekStrip } from "@/components/admin/week-strip";
 import { Button } from "@/components/ui/button";
 import { Stat } from "@/components/ui/card";
 import { formatINR } from "@/lib/money";
@@ -52,6 +53,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/admin/t
             <Stat icon={ReceiptText} label="Refunds due" value={refundsDue} hint="Paid online, then cancelled" />
           )}
         </div>
+        <WeekStrip date={date} today={today} basePath="/admin/today" />
         <DayCalendar key={date} schedule={schedule} />
       </PageBody>
     </>

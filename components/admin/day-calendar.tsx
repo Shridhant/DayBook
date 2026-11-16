@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarOff } from "lucide-react";
+import { CalendarOff, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { EmptyState } from "@/components/ui/card";
@@ -15,16 +15,26 @@ import { STATUS_LABEL } from "./booking-ui";
 const PX_PER_MIN = 1.6; // 30 min = 48px: room for time + name + service at 13px
 const COLUMN_MIN_WIDTH = 168;
 
-const BLOCK_STYLE: Record<AdminBooking["status"], string> = {
-  confirmed: "border-l-brand bg-accent-soft text-ink",
-  pending: "border-l-warning border-dashed bg-warning/10 text-ink",
-  completed: "border-l-success bg-success/10 text-ink",
-  no_show: "border-l-danger bg-danger/10 text-ink line-through decoration-danger/50",
-  cancelled: "border-l-line bg-hover text-muted line-through",
-  expired: "border-l-line bg-hover text-muted",
+const TONES = 6;
+
+/** Colour comes from the service category; status changes the treatment, not the hue. */
+function blockTone(b: AdminBooking): string {
+  if (b.status === "cancelled" || b.status === "no_show" || b.status === "expired") return "cal-tone-muted";
+  return `cal-tone-${(b.category?.tone ?? 0) % TONES}`;
+}
+
+const STATUS_TREATMENT: Partial<Record<AdminBooking["status"], string>> = {
+  // Awaiting payment: outlined and striped, like a tentative event.
+  pending:
+    "bg-[repeating-linear-gradient(135deg,var(--tone-bg)_0_6px,transparent_6px_12px)] outline-[1.5px] -outline-offset-[1.5px] outline-dashed outline-(--tone-bar)",
+  no_show: "line-through decoration-1",
+  cancelled: "line-through decoration-1",
 };
 
-const hatch = "bg-[repeating-linear-gradient(135deg,var(--hover)_0_6px,transparent_6px_12px)]";
+/** "4:30 pm" → "4:30pm", "6:00 am" → "6am": compact, like a phone calendar. */
+function shortTime(min: number) {
+  return formatTime(min).replace(":00", "").replace(" ", "");
+}
 
 function useNowMinutes(date: string) {
   const isClient = useIsClient();
@@ -62,6 +72,12 @@ export function DayCalendar({ schedule }: { schedule: DaySchedule }) {
     return { start: Math.floor(Math.min(...points) / 60) * 60, end: Math.ceil(Math.max(...points) / 60) * 60 };
   }, [schedule]);
 
+  const legend = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const b of schedule.bookings) if (b.category) seen.set(b.category.name, b.category.tone);
+    return [...seen].map(([name, tone]) => ({ name, tone })).sort((a, b) => a.tone - b.tone);
+  }, [schedule.bookings]);
+
   const columns = schedule.staff.filter((s) => s.shifts.length > 0 || bookings.some((b) => b.staffId === s.id));
 
   if (!range || columns.length === 0) {
@@ -83,25 +99,37 @@ export function DayCalendar({ schedule }: { schedule: DaySchedule }) {
           {schedule.closureReason ? <span className="font-medium text-danger">Closed: {schedule.closureReason} · </span> : null}
           {bookings.filter((b) => b.status !== "cancelled").length} bookings · {columns.length} artists
         </p>
-        <label className="flex items-center gap-2 text-muted">
-          <Checkbox checked={showCancelled} onCheckedChange={(v) => setShowCancelled(v === true)} /> Show cancelled
-        </label>
+        <div className="flex items-center gap-4">
+          {legend.length > 1 && (
+            <ul className="hidden items-center gap-3 text-[12px] text-muted md:flex" aria-label="Colours">
+              {legend.map((c) => (
+                <li key={c.name} className={cn("flex items-center gap-1.5", `cal-tone-${c.tone % TONES}`)}>
+                  <span className="size-2 rounded-full bg-(--tone-bar)" aria-hidden />
+                  {c.name}
+                </li>
+              ))}
+            </ul>
+          )}
+          <label className="flex items-center gap-2 text-muted">
+            <Checkbox checked={showCancelled} onCheckedChange={(v) => setShowCancelled(v === true)} /> Show cancelled
+          </label>
+        </div>
       </div>
 
       <div className="card thin-scroll max-h-[calc(100dvh-200px)] min-h-[420px] overflow-auto" role="region" aria-label="Day calendar">
         <div className="relative flex" style={{ minWidth: 56 + columns.length * COLUMN_MIN_WIDTH }}>
           {/* Time gutter (sticky left) */}
-          <div className="sticky left-0 z-20 w-14 shrink-0 border-r border-line bg-surface">
-            <div className="sticky top-0 z-10 h-10 border-b border-line bg-surface" />
+          <div className="sticky left-0 z-20 w-14 shrink-0 bg-surface">
+            <div className="sticky top-0 z-10 h-12 border-b border-line bg-surface" />
             <div className="relative" style={{ height }}>
               {hours.map((h) => (
                 <span
                   key={h}
                   // The first label sits below its line so it isn't cut off by the header.
-                  className={cn("absolute right-2 text-[11px] text-muted tabular-nums", h === range.start ? "translate-y-0.5" : "-translate-y-1/2")}
+                  className={cn("absolute right-2.5 text-[11px] text-muted tabular-nums", h === range.start ? "translate-y-0.5" : "-translate-y-1/2")}
                   style={{ top: y(h) }}
                 >
-                  {h < range.end ? formatTime(h).replace(":00", "") : ""}
+                  {h < range.end ? shortTime(h) : ""}
                 </span>
               ))}
             </div>
@@ -110,23 +138,25 @@ export function DayCalendar({ schedule }: { schedule: DaySchedule }) {
           {columns.map((staff) => {
             const staffBookings = bookings.filter((b) => b.staffId === staff.id);
             return (
-              <div key={staff.id} className="min-w-0 flex-1 border-r border-line last:border-r-0" style={{ minWidth: COLUMN_MIN_WIDTH }}>
-                <div className="sticky top-0 z-10 flex h-10 flex-col justify-center border-b border-line bg-surface px-2">
-                  <p className="truncate text-[13px] font-medium">{staff.name}</p>
-                  <p className="truncate text-[11px] text-muted tabular-nums">
-                    {staff.shifts.length ? staff.shifts.map((s) => `${formatTime(s.start)}–${formatTime(s.end)}`).join(", ") : "Not on shift"}
-                  </p>
+              <div key={staff.id} className="min-w-0 flex-1" style={{ minWidth: COLUMN_MIN_WIDTH }}>
+                <div className="sticky top-0 z-10 flex h-12 items-center gap-2 border-b border-line bg-surface px-3">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-hover text-[12px] font-semibold text-muted" aria-hidden>
+                    {staff.name.charAt(0)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-[14px] font-medium">{staff.name}</p>
+                    <p className="truncate text-[11px] text-muted tabular-nums">
+                      {staff.shifts.length ? staff.shifts.map((s) => `${shortTime(s.start)}–${shortTime(s.end)}`).join(", ") : "Not on shift"}
+                    </p>
+                  </div>
                 </div>
-                <div className={cn("relative", hatch)} style={{ height }}>
-                  {/* Working time is plain; everything else stays hatched. */}
+                <div className="relative border-l border-line bg-canvas" style={{ height }}>
+                  {/* Working time is plain; off-shift time is greyed. */}
                   {staff.shifts.map((s, i) => (
                     <div key={i} className="absolute inset-x-0 bg-surface" style={{ top: y(s.start), height: (s.end - s.start) * PX_PER_MIN }} />
                   ))}
                   {hours.map((h) => (
-                    <div key={h} className="pointer-events-none absolute inset-x-0 border-t border-line" style={{ top: y(h) }} />
-                  ))}
-                  {hours.slice(0, -1).map((h) => (
-                    <div key={`${h}-half`} className="pointer-events-none absolute inset-x-0 border-t border-dashed border-line/60" style={{ top: y(h + 30) }} />
+                    <div key={h} className="pointer-events-none absolute inset-x-0 border-t border-line/70" style={{ top: y(h) }} />
                   ))}
                   {staff.leave.map((l, i) => (
                     <div
@@ -137,36 +167,46 @@ export function DayCalendar({ schedule }: { schedule: DaySchedule }) {
                       On leave
                     </div>
                   ))}
-                  {staffBookings.map((b) => (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => setSelectedId(b.id)}
-                      className={cn(
-                        "absolute inset-x-1 overflow-hidden rounded-lg border-l-[3px] px-2 py-1 text-left outline-none transition-[box-shadow,filter]",
-                        "hover:brightness-[0.97] focus-visible:ring-3 focus-visible:ring-accent/30",
-                        BLOCK_STYLE[b.status],
-                      )}
-                      style={{ top: y(b.startMin) + 1, height: Math.max((b.endMin - b.startMin) * PX_PER_MIN - 2, 22) }}
-                      aria-label={`${formatTime(b.startMin)} ${b.customer.name}, ${b.items.map((i) => i.name).join(", ")}, ${STATUS_LABEL[b.status]}`}
-                    >
-                      <span className="block truncate text-[11px] text-muted tabular-nums">
-                        {formatTime(b.startMin)} – {formatTime(b.endMin)}
-                        {b.refundDue && <span className="ml-1 font-medium text-warning">· refund due</span>}
-                      </span>
-                      <span className="block truncate font-medium">{b.customer.name}</span>
-                      <span className="block truncate text-[12px] text-muted">{b.items.map((i) => i.name).join(", ")}</span>
-                    </button>
-                  ))}
+                  {staffBookings.map((b) => {
+                    const blockHeight = Math.max((b.endMin - b.startMin) * PX_PER_MIN - 3, 22);
+                    const services = b.items.map((i) => i.name).join(", ");
+                    return (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => setSelectedId(b.id)}
+                        className={cn(
+                          "absolute inset-x-1 overflow-hidden rounded-lg bg-(--tone-bg) py-1 pr-2 pl-3.5 text-left text-(--tone-fg) outline-none",
+                          "transition-[filter,box-shadow] hover:brightness-[0.97] focus-visible:ring-3 focus-visible:ring-accent/30 dark:hover:brightness-110",
+                          blockTone(b),
+                          STATUS_TREATMENT[b.status],
+                        )}
+                        style={{ top: y(b.startMin) + 1.5, height: blockHeight }}
+                        aria-label={`${formatTime(b.startMin)} ${b.customer.name}, ${services}, ${STATUS_LABEL[b.status]}`}
+                      >
+                        <span className="absolute top-1 bottom-1 left-1 w-[3px] rounded-full bg-(--tone-bar)" aria-hidden />
+                        <span className="flex items-center gap-1 truncate text-[13px] leading-[18px] font-semibold">
+                          {b.status === "completed" && <Check className="size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />}
+                          <span className="truncate">{b.customer.name}</span>
+                        </span>
+                        <span className="block truncate text-[12px] leading-4 opacity-80 tabular-nums">
+                          {b.status === "pending" ? "Awaiting payment · " : ""}
+                          {shortTime(b.startMin)} – {shortTime(b.endMin)}
+                          {b.refundDue && <span className="font-semibold text-warning"> · refund due</span>}
+                        </span>
+                        {blockHeight >= 56 && <span className="mt-0.5 block truncate text-[12px] leading-4 opacity-70">{services}</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );
           })}
 
           {nowMin !== null && nowMin >= range.start && nowMin <= range.end && (
-            <div className="pointer-events-none absolute right-0 left-14 z-10 flex items-center" style={{ top: 40 + y(nowMin) }} aria-hidden>
-              <span className="-ml-1 size-2 rounded-full bg-brand" />
-              <span className="h-px flex-1 bg-brand" />
+            <div className="pointer-events-none absolute right-0 left-14 z-10 flex items-center" style={{ top: 48 + y(nowMin) }} aria-hidden>
+              <span className="-ml-1 size-2.5 rounded-full bg-danger ring-2 ring-surface" />
+              <span className="h-[1.5px] flex-1 bg-danger" />
             </div>
           )}
         </div>
