@@ -1,16 +1,8 @@
--- One-time setup for a Supabase database (run in Supabase → SQL Editor). Safe to re-run: run it
--- before the migrations (for uuidv7) and again after them (so daybook_app can use the new tables).
--- Supabase's `postgres` role owns the schema and runs migrations (dbmate). The app connects as
--- `daybook_app`, which can only read and write rows, never change the schema (AGENTS.md §6).
---
--- 1. Replace CHANGE_ME with a strong password (openssl rand -base64 24) before running.
---    Don't save the password in this file.
--- 2. Also turn off Supabase's Data API for the public schema (Project Settings → Data API),
---    or anyone with the project's public key could read the tables. Daybook doesn't use it.
-
--- uuidv7() for Postgres < 18 ---------------------------------------------------
--- Every table's id defaults to uuidv7(), built into Postgres 18. On older servers this adds an
--- equivalent (time-ordered UUID v7) so the migrations run unchanged. No-op on Postgres 18+.
+-- One-time setup for a Supabase database, before the migrations (Supabase → SQL Editor, or psql).
+-- Every table's id defaults to uuidv7(), built into Postgres 18. Supabase runs an older version,
+-- so this adds an equivalent (time-ordered UUID v7). It does nothing on Postgres 18+.
+-- Also turn off Supabase's Data API (Project Settings → Data API): Daybook talks to Postgres
+-- directly, and leaving the API on would let anyone with the project's public key read the tables.
 do $$
 begin
   if current_setting('server_version_num')::int < 180000
@@ -29,22 +21,3 @@ begin
     $f$;
   end if;
 end $$;
-
--- App role ---------------------------------------------------------------------
-do $$
-begin
-  if not exists (select from pg_roles where rolname = 'daybook_app') then
-    create role daybook_app login password 'CHANGE_ME';
-  end if;
-end $$;
-
-grant usage on schema public to daybook_app;
--- Tables, sequences and functions the migrations create later (as `postgres`):
-alter default privileges for role postgres in schema public grant select, insert, update, delete on tables to daybook_app;
-alter default privileges for role postgres in schema public grant usage, select on sequences to daybook_app;
-alter default privileges for role postgres in schema public grant execute on functions to daybook_app;
--- And anything that already exists (safe to re-run after migrations):
-grant select, insert, update, delete on all tables in schema public to daybook_app;
-grant usage, select on all sequences in schema public to daybook_app;
-grant execute on all functions in schema public to daybook_app;
-

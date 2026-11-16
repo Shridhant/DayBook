@@ -66,12 +66,10 @@ npm run start          # run production build
 npm run lint           # eslint
 npm run typecheck      # next typegen && tsc --noEmit (route types like LayoutProps are generated)
 npm test               # vitest
-npm run db:migrate     # dbmate up
+npm run db:migrate     # dbmate up (DATABASE_URL)
 npm run db:new -- name # dbmate new <name>
-npm run db:seed        # load db/seed.sql (dev only)
+npm run db:seed        # load db/seed.sql (wipes catalog/bookings; a non-local DB needs `-- --yes`)
 npm run db:demo        # realistic demo bookings ±14 days around today (dev only; re-runnable, customers 99999xxxxx)
-npm run db:supabase:migrate    # migrations on the hosted demo DB (SUPABASE_MIGRATION_URL); also :status, :seed, :demo
-npm run admin:create-user -- --url-env SUPABASE_APP_URL ...   # create a login in the hosted demo DB
 npm run db:test:prepare        # apply migrations to the test database
 npm run admin:create-user -- --role owner --name "Name" --email you@example.com   # prompts for a hidden password
 npm run auth:schema            # print the SQL Better Auth expects (use it to write migrations after upgrades)
@@ -135,6 +133,7 @@ Every file in `server/` and `lib/db.ts`, `lib/razorpay.ts`, `lib/auth.ts` must s
 
 - **Raw SQL with postgres.js tagged templates.** Values go in `${}` so they are sent as parameters. **Never build SQL by string concatenation.** Use `sql(identifier)` / `sql.unsafe` only with hard-coded identifiers, never user input.
 - **Single shared pool** in `lib/db.ts`, cached on `globalThis` in development to survive hot reloads.
+- Migrations are the schema's source of truth (no `schema.sql` dump). Supabase runs Postgres < 18, so `db/supabase-setup.sql` adds `uuidv7()` before the first migration.
 - **Migrations are append-only.** Never edit a migration that has been applied anywhere; add a new one. Every migration has a `-- migrate:down` section.
 - **Never change the live schema by hand.**
 - Write row types by hand in `server/types.ts` (or next to the query). Keep them in sync with migrations.
@@ -306,7 +305,7 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 
 - **Read before writing.** Check existing code and this file before adding anything new.
 - Stay inside the requested task and phase. If you notice something else worth doing, mention it; don't do it.
-- Never run destructive commands against a real database (drop, truncate, mass delete), never touch production, and never commit secrets. Tests use only `DATABASE_URL_TEST` (local); never point them at Supabase. Remote databases are only reachable through the explicit `--url-env` / `db:supabase:*` scripts.
+- Never run destructive commands against a real database (drop, truncate, mass delete), never touch production, and never commit secrets. **One `DATABASE_URL`** (the Supabase demo database, laptop and server alike) is used by the app, migrations, seed and `admin:create-user`. Tests use only the local `DATABASE_URL_TEST` / `DATABASE_MIGRATION_URL_TEST`, and `vitest.config.mts` refuses to start unless both are a local `*_test` database. The demo connects as Supabase's `postgres` user; a real salon should get a separate app user that can't change the schema.
 - Do not commit or push unless asked.
 - When unsure about a business rule (pricing, refunds, cancellations, staff permissions), **ask** rather than invent one.
 - At the end of a task, report: what changed, how you verified it (commands + results), and anything left undone.

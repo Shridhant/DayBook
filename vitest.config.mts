@@ -6,6 +6,16 @@ import { defineConfig } from "vitest/config";
 
 const fileEnv = loadEnv("test", process.cwd(), "");
 
+// Tests wipe data. They only ever run against a local database whose name ends in _test, never
+// the Supabase demo database that DATABASE_URL points at.
+for (const name of ["DATABASE_URL_TEST", "DATABASE_MIGRATION_URL_TEST"]) {
+  const value = fileEnv[name];
+  const target = value ? new URL(value) : null;
+  if (!target || !["localhost", "127.0.0.1", "::1"].includes(target.hostname) || !target.pathname.endsWith("_test")) {
+    throw new Error(`${name} must point at a local database whose name ends in _test (see .env.example).`);
+  }
+}
+
 export default defineConfig({
   resolve: {
     alias: {

@@ -5,8 +5,8 @@ import { getMigrations } from "better-auth/db/migration";
 import { Pool } from "pg";
 import { authSchemaOptions } from "../lib/auth-schema.ts";
 
-const url = process.env.DATABASE_MIGRATION_URL;
-if (!url) throw new Error("DATABASE_MIGRATION_URL is not set (expected in .env.local).");
+const url = process.env.DATABASE_URL;
+if (!url) throw new Error("DATABASE_URL is not set (expected in .env.local).");
 
 const pool = new Pool({ connectionString: url.replace("?sslmode=disable", "") });
 try {

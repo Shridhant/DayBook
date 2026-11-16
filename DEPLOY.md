@@ -1,86 +1,69 @@
 # Deploying the Daybook demo
 
-Target: **https://daybook.cembers.in** on the existing VPS (Nginx + PM2, alongside the other apps),
+Target: **https://daybook.cembers.in** on the existing VPS (Nginx + PM2, next to the other apps),
 with the database on **Supabase** (Mumbai). Nothing here changes the other apps on the server.
 
 | Piece | Where |
 |---|---|
 | App | VPS, PM2 process `daybook`, port **3100** on 127.0.0.1 only |
 | Web server / HTTPS | Existing Nginx + Let's Encrypt (certbot) |
-| Database | Supabase Postgres, Session pooler (IPv4) |
+| Database | Supabase Postgres: one `DATABASE_URL`, the same on your laptop and the server |
 | Photos | VPS disk, `/home/ubuntu/daybook-data/uploads` |
-| Emails + reminders | Resend SMTP, sent by a crontab job every minute |
+| Emails + reminders | Resend (SMTP), sent by a crontab job every minute |
 
-Never commit secrets. On your laptop they live in `.env.local`; on the server in
-`.env.production.local`. Both are gitignored.
+Secrets live only in `.env.local` (laptop) and `.env.production.local` (server). Both are gitignored.
 
 ---
 
-## 1. Accounts (once)
+## 1. Database (Supabase): done once, from your laptop
 
-- **Resend** (resend.com): add the domain `cembers.in`, add the DNS records it shows (SPF, DKIM)
-  where `cembers.in` is managed, wait for "Verified", then create an API key.
-- **DNS** for `cembers.in`: an **A record** `daybook` pointing to the VPS's IPv4 address.
-- **Better Auth** needs no account, only a secret (step 4).
+1. Supabase → **Project Settings → Data API**: turn it off. Daybook talks to Postgres directly;
+   leaving it on would let anyone with the project's public key read the tables.
+2. Supabase → **Connect → Connection string** (Direct connection). In `.env.local`:
+   ```bash
+   DATABASE_URL=postgresql://postgres:<database password>@db.<project>.supabase.co:5432/postgres?sslmode=require
+   ```
+   - Remove the `[ ]` around the password. Write `@` in the password as `%40` (`:` → `%3A`, `/` → `%2F`, `#` → `%23`).
+   - Forgot the password? Project Settings → Database → **Reset database password**.
+   - A few wrong passwords get your IP blocked: unblock it under Database → **Network Bans**.
+3. Set it up:
+   ```bash
+   psql "$DATABASE_URL" -f db/supabase-setup.sql   # or paste the file into Supabase's SQL Editor
+   npm run db:migrate                              # create the tables
+   npm run db:seed -- --yes                        # services, artists, shifts (wipes those first)
+   npm run db:demo                                 # sample bookings around today (re-run before a pitch)
+   npm run admin:create-user -- --role owner --name "Your Name" --email you@cembers.in
+   ```
+   The last command creates **your admin login** (the email + password you sign in with at
+   `/admin/login`). It asks for the password twice, hidden.
 
-## 2. Supabase (once)
+✅ Already done for project `tphupoyulxbuqbucmqor`, except your admin login.
 
-1. **Project Settings → Data API**: turn it off (or remove `public` from exposed schemas).
-   Daybook talks to Postgres directly; leaving the Data API on would let anyone with the
-   project's public key read the tables.
-2. **SQL Editor**: open `db/supabase-setup.sql`, replace `CHANGE_ME` with a new strong password
-   (`openssl rand -base64 24`, letters and digits only is easiest in URLs), and run it. This creates the
-   `daybook_app` user and, on Postgres < 18, the `uuidv7()` function the tables use.
-3. **Connection string**: Connect → Connection String. The *Direct connection* works where IPv6 is
-   available (your laptop has it). If the server has no IPv6, use **Session pooler** instead. It looks like
-   `postgresql://postgres:[PASSWORD]@db.tphupoyulxbuqbucmqor.supabase.co:5432/postgres` (direct) or
-   `postgresql://postgres.tphupoyulxbuqbucmqor:[PASSWORD]@aws-…pooler.supabase.com:5432/postgres` (pooler).
-   Drop the `[ ]` around the password, and if it contains `@ : / ? #`, write those as `%40 %3A %2F %3F %23`.
-   Supabase blocks your IP after a few wrong passwords: unblock it under Database → Network Bans.
+## 2. Email (Resend)
 
-## 3. Database setup, from your laptop
+1. resend.com → **API Keys** → create one (shown once, starts with `re_`).
+2. To email customers: **Domains → Add domain** `cembers.in`, add the DNS records it shows where
+   `cembers.in` is managed, wait for *Verified*. Until then Resend only delivers to your own
+   Resend address, sent from `onboarding@resend.dev`.
 
-Add to `.env.local` (keep the local `DATABASE_URL*` lines as they are; tests must never touch Supabase).
-Write each URL out in full: the setup scripts don't expand `${…}` variables. `sslmode=require` is
-enough: both drivers verified Supabase's certificate without a downloaded CA file.
+## 3. DNS
 
-```bash
-# Supabase: schema owner (migrations, seed) and the app's own user
-SUPABASE_MIGRATION_URL=postgresql://postgres:<postgres password>@db.tphupoyulxbuqbucmqor.supabase.co:5432/postgres?sslmode=require
-SUPABASE_APP_URL=postgresql://daybook_app:<daybook_app password>@db.tphupoyulxbuqbucmqor.supabase.co:5432/postgres?sslmode=require
-```
+Where `cembers.in` is managed: an **A record** `daybook` pointing to the VPS's IPv4 address.
 
-Then:
-
-```bash
-npm run db:supabase:migrate                      # create the tables
-npm run db:supabase:seed                         # services, artists, shifts, sample content (wipes them first)
-npm run db:supabase:demo                         # sample bookings around today (re-run before a pitch)
-npm run admin:create-user -- --url-env SUPABASE_MIGRATION_URL --role owner --name "Your Name" --email you@cembers.in
-```
-
-Re-run step 2's SQL once more after migrating, so `daybook_app` can use every table.
-
-**To run your laptop against Supabase** (instead of local Postgres), set in `.env.local`:
-`DATABASE_URL=$SUPABASE_APP_URL` and restart `npm run dev`. Switch back by restoring the local line.
-
-## 4. Server (VPS)
+## 4. Server
 
 ```bash
-# Code
 cd ~ && git clone <your repo URL> daybook && cd daybook
 mkdir -p ~/daybook-data/uploads
-
-# Settings: create .env.production.local (values below), then:
-npm ci
-npm run build
+nano .env.production.local        # paste the settings below
+npm ci && npm run build
 pm2 start ecosystem.config.cjs && pm2 save
 ```
 
 `.env.production.local`:
 
 ```bash
-DATABASE_URL=<SUPABASE_APP_URL from step 3>
+DATABASE_URL=<same as your laptop's DATABASE_URL>
 SITE_URL=https://daybook.cembers.in
 UPLOAD_DIR=/home/ubuntu/daybook-data/uploads
 BETTER_AUTH_SECRET=<openssl rand -base64 32>
@@ -97,19 +80,19 @@ OWNER_NOTIFY_EMAILS=<your email>
 NEXT_PUBLIC_DEMO_MODE=1
 ```
 
-`SITE_URL` must be exactly the public address, or sign-in fails. `NEXT_PUBLIC_*` values are
-baked in at build time: change one, rebuild.
+- `SITE_URL` must be exactly the public address, or sign-in fails.
+- `NEXT_PUBLIC_*` values are baked in at build time: change one, rebuild.
+- If the build or app can't reach Supabase, the server has no IPv6: use Supabase's
+  **Session pooler** string (Connect → Connection string → Session pooler) as `DATABASE_URL`.
 
 ## 5. Nginx + HTTPS
 
 ```bash
 sudo cp deploy/nginx/daybook.cembers.in.conf /etc/nginx/sites-available/
 sudo ln -s /etc/nginx/sites-available/daybook.cembers.in.conf /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d daybook.cembers.in     # adds HTTPS and the http → https redirect
+sudo nginx -t && sudo systemctl reload nginx     # -t checks first, so the other sites stay up
+sudo certbot --nginx -d daybook.cembers.in       # HTTPS + http → https redirect
 ```
-
-`nginx -t` checks the config before reloading, so a typo can't take the other sites down.
 
 ## 6. Razorpay (test mode)
 
@@ -126,22 +109,22 @@ Dashboard → Webhooks → Add: URL `https://daybook.cembers.in/api/webhooks/raz
 * * * * * curl -fsS -H "Authorization: Bearer <CRON_SECRET>" http://127.0.0.1:3100/api/cron/email > /dev/null
 ```
 
-## 8. Updating
+## Updating
 
 ```bash
 cd ~/daybook && git pull && npm ci && npm run build && pm2 restart daybook
 ```
 
-New migrations run from your laptop: `npm run db:supabase:migrate`.
-
-## 9. Backups
-
-Photos are on the VPS disk: back up `~/daybook-data/uploads` together with the database. Supabase's
-free plan keeps limited backups; for a demo that's fine. For a real salon, add a nightly `pg_dump`.
+New migrations: `npm run db:migrate` from your laptop (same `DATABASE_URL`).
 
 ## Check it works
 
 - `https://daybook.cembers.in` shows the site with the demo strip.
-- Sign in at `/admin/login`; the calendar shows today's demo bookings.
+- Sign in at `/admin/login` with your admin login; the calendar shows today's demo bookings.
 - Book with the test UPI ID `success@razorpay`; the booking appears in the admin bell.
 - `pm2 logs daybook` shows no errors.
+
+## Later, for a real salon
+
+Use a separate database user for the app that can read and write rows but not change tables, plus
+nightly backups of the database and `~/daybook-data/uploads`.

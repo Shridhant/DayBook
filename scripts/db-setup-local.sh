@@ -11,8 +11,8 @@ cd "$(dirname "$0")/.."
 pw_from() { node -e "console.log(decodeURIComponent(new URL(process.argv[1]).password))" "$1"; }
 url_of() { grep -E "^$1=" .env.local | head -1 | cut -d= -f2-; }
 
-APP_PW=$(pw_from "$(url_of DATABASE_URL)")
-OWNER_PW=$(pw_from "$(url_of DATABASE_MIGRATION_URL)")
+APP_PW=$(pw_from "$(url_of DATABASE_URL_TEST)")
+OWNER_PW=$(pw_from "$(url_of DATABASE_MIGRATION_URL_TEST)")
 
 psql -h localhost -U "${PGSUPERUSER:-postgres}" -d postgres \
   -v owner_pw="$OWNER_PW" -v app_pw="$APP_PW" -f db/setup-local.sql

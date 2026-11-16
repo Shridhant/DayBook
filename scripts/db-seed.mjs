@@ -1,24 +1,24 @@
-// Loads db/seed.sql (catalog, artists, shifts, sample content) as the schema owner. It WIPES the
-// catalog, bookings and content tables first, so only use it on a dev or demo database.
-// Local by default; a remote database must be named with --url-env.
+// Loads db/seed.sql (catalog, artists, shifts, sample content). It WIPES the catalog, bookings
+// and content tables first, so on any non-local database (e.g. the Supabase demo) it asks for an
+// explicit `npm run db:seed -- --yes`. Never for a real salon's database.
 import postgres from "postgres";
 
-// `--url-env NAME` targets another database (e.g. SUPABASE_MIGRATION_URL for the hosted demo);
-// anything that isn't localhost must be named explicitly like that, never by accident.
-const urlFlag = process.argv.indexOf("--url-env");
-const urlEnv = urlFlag > -1 ? process.argv[urlFlag + 1] : "DATABASE_MIGRATION_URL";
-const url = process.env[urlEnv];
+const url = process.env.DATABASE_URL;
 if (!url) {
-  console.error(`${urlEnv} is not set (expected in .env.local).`);
+  console.error("DATABASE_URL is not set (expected in .env.local).");
   process.exit(1);
 }
 const host = new URL(url).hostname;
 const isLocal = ["localhost", "127.0.0.1", "::1"].includes(host);
-if (!isLocal) console.log(`→ Seeding the REMOTE database at ${host} (from ${urlEnv}).`);
-if (process.env.NODE_ENV === "production" || (!isLocal && urlFlag === -1)) {
-  console.error(`Refusing to seed: NODE_ENV=${process.env.NODE_ENV ?? "unset"}, host=${host}. Use --url-env for a remote demo database.`);
+if (process.env.NODE_ENV === "production") {
+  console.error("Refusing to seed with NODE_ENV=production.");
   process.exit(1);
 }
+if (!isLocal && !process.argv.includes("--yes")) {
+  console.error(`This wipes services, artists, bookings and content on ${host}.\nIf that's what you want (fresh demo database), run: npm run db:seed -- --yes`);
+  process.exit(1);
+}
+console.log(`→ Seeding ${host}`);
 
 const sql = postgres(url, { max: 1, onnotice: () => {} });
 try {
