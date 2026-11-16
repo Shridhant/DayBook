@@ -69,6 +69,7 @@ npm test               # vitest
 npm run db:migrate     # dbmate up
 npm run db:new -- name # dbmate new <name>
 npm run db:seed        # load db/seed.sql (dev only)
+npm run db:demo        # realistic demo bookings ±14 days around today (dev only; re-runnable, customers 99999xxxxx)
 npm run db:test:prepare        # apply migrations to the test database
 npm run admin:create-user -- --role owner --name "Name" --email you@example.com   # prompts for a hidden password
 npm run auth:schema            # print the SQL Better Auth expects (use it to write migrations after upgrades)
@@ -273,6 +274,9 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - Every async action has loading, success and error states. Payment failures must tell the user clearly whether they were charged.
 - **Reuse `components/ui/` before writing new UI.** New shared components go there and get an example on the dev-only `/kit` page (`app/kit/`).
 - Dark mode toggles the `dark` class on `<html>` (never on a wrapper div), so portalled overlays inherit it.
+- **One file per salon:** name, brand colours, hero headline and contact details live in `lib/site.ts` (`brandCss()` injects the colours in the root layout). Never hardcode the salon name or brand colours elsewhere, including emails, Razorpay Checkout, the OG image and `global-error.tsx`.
+- **Demo mode** (`NEXT_PUBLIC_DEMO_MODE=1`, `lib/demo.ts`): a "demo / test payments" strip on every page and Razorpay test hints at checkout. For the sales demo only, never for a real salon. Demo bookings' payments use fake ids, so refunding them fails; demo refunds with a real test-mode booking.
+- The admin/staff dark-mode script runs once from the root layout `<head>` (`lib/admin-theme.ts`), never from a nested layout: React re-renders those on the client, where inline scripts don't run.
 - Grid/flex children that contain horizontal scrollers need `min-w-0`, or they push the page wider than the phone.
 - Accessibility: semantic HTML, labelled inputs, visible focus states, alt text on portfolio images, sufficient contrast.
 

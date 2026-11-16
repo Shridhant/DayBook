@@ -24,7 +24,8 @@ export function Hero({ images }: { images: PortfolioItem[] }) {
           </Reveal>
           <Reveal index={1}>
             <DisplayTitle className="mt-3">
-              Nails, done <Accent>beautifully</Accent>.
+              {site.headline.before} <Accent>{site.headline.highlight}</Accent>
+              {site.headline.after}
             </DisplayTitle>
           </Reveal>
           <Reveal index={2}>

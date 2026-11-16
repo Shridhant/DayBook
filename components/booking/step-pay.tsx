@@ -3,6 +3,7 @@
 import { Clock, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Alert } from "@/components/ui/alert";
+import { DEMO_MODE } from "@/lib/demo";
 import { Button } from "@/components/ui/button";
 import { formatINR } from "@/lib/money";
 import { formatDate, formatDuration, formatInstantTime, toIst } from "@/lib/time";
@@ -52,6 +53,13 @@ export function PayStep({
           <Clock aria-hidden className="size-4" />
           We&apos;re holding this slot for you for <span className="font-medium text-ink tabular-nums">{mm}:{ss}</span>
         </div>
+
+        {DEMO_MODE && hold.amountDueNowPaise > 0 && (
+          <Alert title="Demo: test payment">
+            Nothing is charged. In the payment window choose UPI and enter <span className="font-mono">success@razorpay</span>, or pick
+            Netbanking, any bank, then &quot;Success&quot;.
+          </Alert>
+        )}
 
         <div className="card p-5">
           <p className="text-[18px] font-semibold tracking-[-0.01em]">

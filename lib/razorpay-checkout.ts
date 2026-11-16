@@ -1,5 +1,7 @@
 "use client";
 
+import { site } from "./site";
+
 /**
  * Browser side of Razorpay Checkout. The script is loaded only when the customer reaches the
  * payment step (DESIGN.md §11.7: no third-party scripts until needed).
@@ -85,7 +87,7 @@ export async function openCheckout(params: {
         contact: params.prefill.contact ?? undefined,
         email: params.prefill.email ?? undefined,
       },
-      theme: { color: "#D6008F" },
+      theme: { color: site.colors.accent },
       handler: (r) =>
         resolve({ kind: "paid", orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature }),
       modal: { ondismiss: () => resolve({ kind: "dismissed", lastError }) },

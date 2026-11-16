@@ -1,6 +1,7 @@
 import "server-only";
 import { formatINR } from "@/lib/money";
 import { formatIndianMobile } from "@/lib/phone";
+import { site } from "@/lib/site";
 import { formatDate, formatInstantTime, toIst } from "@/lib/time";
 
 /**
@@ -48,11 +49,11 @@ type EmailAction = { label: string; url: string };
 function layout(salon: string, heading: string, intro: string, detail: [string, string][], footer: string, action?: EmailAction) {
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f6f6f3;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5">
 <div style="max-width:520px;margin:0 auto;background:#fdfdfc;border:1px solid #e6e6e1;border-radius:12px;padding:24px">
-<p style="margin:0 0 16px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#b8007b">${escapeHtml(salon)}</p>
+<p style="margin:0 0 16px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:${site.colors.accentDeep}">${escapeHtml(salon)}</p>
 <h1 style="margin:0 0 8px;font-size:20px;color:#111827">${escapeHtml(heading)}</h1>
 <p style="margin:0 0 16px;color:#5f6672">${escapeHtml(intro)}</p>
 <table style="border-collapse:collapse">${rows(detail)}</table>
-${action ? `<p style="margin:20px 0 0"><a href="${escapeHtml(action.url)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#d6008f;color:#ffffff;text-decoration:none;font-weight:600">${escapeHtml(action.label)}</a></p>` : ""}
+${action ? `<p style="margin:20px 0 0"><a href="${escapeHtml(action.url)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:${site.colors.accent};color:#ffffff;text-decoration:none;font-weight:600">${escapeHtml(action.label)}</a></p>` : ""}
 <p style="margin:16px 0 0;font-size:13px;color:#5f6672">${escapeHtml(footer)}</p>
 </div></body></html>`;
   const text = [salon, "", heading, intro, "", ...detail.map(([k, v]) => `${k}: ${v}`), ...(action ? ["", `${action.label}: ${action.url}`] : []), "", footer].join("\n");

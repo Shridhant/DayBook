@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { AdminThemeSync } from "@/components/admin/theme";
+import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: { default: "Admin", template: "%s · Daybook admin" },
+  title: { default: "Admin", template: `%s · ${site.name} admin` },
   robots: { index: false, follow: false },
 };
 

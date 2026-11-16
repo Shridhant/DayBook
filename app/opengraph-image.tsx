@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { site } from "@/lib/site";
 
-/** Link preview for WhatsApp/Instagram/etc. (DESIGN.md §11.7): Pampas, Ebony, one pink accent. */
+/** Link preview for WhatsApp/Instagram/etc. (DESIGN.md §11.7): Pampas, Ebony, one brand accent from lib/site.ts. */
 export const alt = `${site.name}, ${site.tagline}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -22,18 +22,19 @@ export default function OpengraphImage() {
           fontFamily: "sans-serif",
         }}
       >
-        <div style={{ display: "flex", fontSize: 28, letterSpacing: 4, textTransform: "uppercase", color: "#B8007B" }}>
+        <div style={{ display: "flex", fontSize: 28, letterSpacing: 4, textTransform: "uppercase", color: site.colors.accentDeep }}>
           {site.tagline}
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: 104, fontWeight: 700, letterSpacing: -4, lineHeight: 1 }}>
-            Nails, done&nbsp;<span style={{ color: "#FF00AA" }}>beautifully</span>.
+            {site.headline.before}&nbsp;<span style={{ color: site.colors.brand }}>{site.headline.highlight}</span>
+            {site.headline.after}
           </div>
           <div style={{ display: "flex", marginTop: 28, fontSize: 36, color: "#5F6672" }}>Book online in under a minute.</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", fontSize: 44, fontWeight: 700, letterSpacing: -1 }}>{site.name}</div>
-          <div style={{ display: "flex", width: 140, height: 14, borderRadius: 7, background: "#FF00AA" }} />
+          <div style={{ display: "flex", width: 140, height: 14, borderRadius: 7, background: site.colors.brand }} />
         </div>
       </div>
     ),

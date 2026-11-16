@@ -1,11 +1,27 @@
 /**
- * Public salon details shown on the site. Safe for client components (no secrets).
+ * The salon's identity: the one file to edit when setting Daybook up for a new salon (name,
+ * colours, headline, contact details). Safe for client components (no secrets). Services, prices,
+ * artists, photos and reviews are edited in the admin instead.
  *
  * Fill these in with the salon's REAL details. Anything left empty/null hides the matching
  * button, badge or section, so the site never shows made-up facts.
  */
+type Hex = `#${string}`;
+
 type SiteConfig = {
   name: string;
+  colors: {
+    /** Bright highlight: headline word, dots, underlines. */
+    brand: Hex;
+    /** Button fill. Must keep white text readable (contrast 4.5:1 or more). */
+    accent: Hex;
+    /** Small coloured text on the light background (eyebrows, links). A darker shade of `accent`. */
+    accentDeep: Hex;
+    /** Pale tint for selected rows and soft backgrounds. */
+    accentSoft: Hex;
+  };
+  /** Hero headline: the `highlight` word is shown in the brand colour. */
+  headline: { before: string; highlight: string; after: string };
   legalName: string;
   email: string;
   tagline: string;
@@ -21,6 +37,8 @@ type SiteConfig = {
 
 export const site: SiteConfig = {
   name: "Daybook",
+  colors: { brand: "#FF00AA", accent: "#D6008F", accentDeep: "#B8007B", accentSoft: "#FFE6F5" },
+  headline: { before: "Nails, done", highlight: "beautifully", after: "." },
   /** Registered business name for the policy pages (Razorpay checks it). Falls back to `name`. */
   legalName: "",
   /** Public contact email shown on the Contact and policy pages. */
@@ -51,4 +69,21 @@ export function whatsappLink(message: string): string | null {
 
 export function telLink(): string | null {
   return site.phone ? `tel:${site.phone.replace(/[^\d+]/g, "")}` : null;
+}
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/**
+ * CSS that applies `site.colors` over the defaults in app/globals.css (injected by the root
+ * layout). The selectors are more specific than `:root` / `.dark`, so it wins whatever the order.
+ */
+export function brandCss(colors: SiteConfig["colors"] = site.colors): string {
+  for (const value of Object.values(colors)) {
+    if (!HEX.test(value)) throw new Error(`lib/site.ts colours must be 6-digit hex like #D6008F (got ${value}).`);
+  }
+  const { brand, accent, accentDeep, accentSoft } = colors;
+  return (
+    `html:root:not(.dark){--brand:${brand};--accent:${accent};--accent-hover:${accentDeep};--accent-soft:${accentSoft}}` +
+    `html.dark{--brand:${brand};--accent:${accent};--accent-hover:${brand};--accent-soft:color-mix(in srgb,${brand} 14%,transparent)}`
+  );
 }

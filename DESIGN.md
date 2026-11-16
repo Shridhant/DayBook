@@ -400,6 +400,8 @@ export const staggerDelay = (i: number) => Math.min(i, 20) * 0.015
 
 Brand colours: **Pampas `#FDFDFC`** (background), **Ebony `#111827`** (text), **Hollywood Cerise `#FF00AA`** (accent).
 
+> **Per-salon rebrand:** the four brand tokens (`--brand`, `--accent`, `--accent-hover`, `--accent-soft`) are set from `site.colors` in `lib/site.ts`, which overrides the defaults below for light and dark mode. Change colours there, not in `globals.css`. Keep `accent` dark enough for white button text (4.5:1).
+
 ### Accessibility rule for the accent
 
 `#FF00AA` is only **3.5:1** on the background and **3.6:1** with white text. That's below the 4.5:1 needed for normal text, so the brand cerise is **never used for small text or as a fill behind small white text**. Use it as is for:

@@ -4,6 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import { Pool } from "pg";
 import { authSchemaOptions } from "./auth-schema";
 import { env } from "./env";
+import { site } from "./site";
 
 /**
  * Admin and staff authentication (AGENTS.md §8). Database sessions in our Postgres with
@@ -18,7 +19,7 @@ const pool = globalForAuth.daybookAuthPool ?? new Pool({ connectionString: env.D
 if (env.NODE_ENV !== "production") globalForAuth.daybookAuthPool = pool;
 
 export const auth = betterAuth({
-  appName: "Daybook",
+  appName: site.name,
   baseURL: env.SITE_URL,
   secret: env.BETTER_AUTH_SECRET,
   database: pool,
