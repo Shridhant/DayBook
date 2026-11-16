@@ -19,7 +19,7 @@ import {
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useId, useState, type ReactNode } from "react";
+import { createContext, useContext, useId, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/dialog";
@@ -31,6 +31,16 @@ import { SignOutButton } from "./sign-out-button";
 import { ThemeToggle } from "./theme";
 
 export type ShellUser = { name: string; email: string; role: string };
+
+const ShellUserContext = createContext<ShellUser | null>(null);
+
+/**
+ * The signed-in admin user, for hiding controls they can't use (e.g. refunds for the front desk).
+ * Display only: every API route checks the role on the server.
+ */
+export function useShellUser(): ShellUser | null {
+  return useContext(ShellUserContext);
+}
 
 type NavItem = { href: string; label: string; icon: LucideIcon; ownerOnly?: boolean };
 
@@ -164,6 +174,7 @@ function SidebarBody({ user, brand, onNavigate, showBell = true }: { user: Shell
 export function AdminShell({ user, brand, children }: { user: ShellUser; brand: string; children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
+    <ShellUserContext value={user}>
     <TooltipProvider>
       <NotificationsProvider>
       <div className="min-h-dvh lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -194,6 +205,7 @@ export function AdminShell({ user, brand, children }: { user: ShellUser; brand: 
       </div>
       </NotificationsProvider>
     </TooltipProvider>
+    </ShellUserContext>
   );
 }
 

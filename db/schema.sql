@@ -203,7 +203,7 @@ CREATE TABLE public.notifications (
     dedupe_key text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     staff_leave_id uuid,
-    CONSTRAINT notifications_type_check CHECK ((type = ANY (ARRAY['booking_confirmed'::text, 'payment_review'::text, 'booking_cancelled'::text, 'leave_requested'::text])))
+    CONSTRAINT notifications_type_check CHECK ((type = ANY (ARRAY['booking_confirmed'::text, 'payment_review'::text, 'booking_cancelled'::text, 'leave_requested'::text, 'refund_failed'::text])))
 );
 
 
@@ -248,7 +248,6 @@ CREATE TABLE public.payments (
     currency text DEFAULT 'INR'::text NOT NULL,
     status text DEFAULT 'created'::text NOT NULL,
     refunded_paise integer DEFAULT 0 NOT NULL,
-    rzp_refund_id text,
     needs_review boolean DEFAULT false NOT NULL,
     raw jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -293,6 +292,30 @@ CREATE TABLE public.rate_limits (
     key text NOT NULL,
     count integer NOT NULL,
     last_request bigint NOT NULL
+);
+
+
+--
+-- Name: refunds; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.refunds (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    payment_id uuid NOT NULL,
+    booking_id uuid NOT NULL,
+    amount_paise integer NOT NULL,
+    status text DEFAULT 'creating'::text NOT NULL,
+    rzp_refund_id text,
+    reason text,
+    created_by uuid,
+    source text DEFAULT 'admin'::text NOT NULL,
+    failure_reason text,
+    raw jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT refunds_amount_paise_check CHECK ((amount_paise > 0)),
+    CONSTRAINT refunds_source_check CHECK ((source = ANY (ARRAY['admin'::text, 'auto'::text, 'dashboard'::text]))),
+    CONSTRAINT refunds_status_check CHECK ((status = ANY (ARRAY['creating'::text, 'pending'::text, 'processed'::text, 'failed'::text])))
 );
 
 
@@ -718,6 +741,22 @@ ALTER TABLE ONLY public.rate_limits
 
 
 --
+-- Name: refunds refunds_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.refunds
+    ADD CONSTRAINT refunds_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: refunds refunds_rzp_refund_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.refunds
+    ADD CONSTRAINT refunds_rzp_refund_id_key UNIQUE (rzp_refund_id);
+
+
+--
 -- Name: request_limits request_limits_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -971,6 +1010,20 @@ CREATE INDEX portfolio_items_listing_idx ON public.portfolio_items USING btree (
 
 
 --
+-- Name: refunds_booking_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX refunds_booking_idx ON public.refunds USING btree (booking_id, created_at);
+
+
+--
+-- Name: refunds_open_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX refunds_open_idx ON public.refunds USING btree (created_at) WHERE (status = ANY (ARRAY['creating'::text, 'pending'::text]));
+
+
+--
 -- Name: request_limits_window_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1052,6 +1105,13 @@ CREATE TRIGGER payments_updated_at BEFORE UPDATE ON public.payments FOR EACH ROW
 --
 
 CREATE TRIGGER portfolio_items_updated_at BEFORE UPDATE ON public.portfolio_items FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: refunds refunds_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER refunds_updated_at BEFORE UPDATE ON public.refunds FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -1185,6 +1245,30 @@ ALTER TABLE ONLY public.portfolio_items
 
 
 --
+-- Name: refunds refunds_booking_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.refunds
+    ADD CONSTRAINT refunds_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: refunds refunds_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.refunds
+    ADD CONSTRAINT refunds_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: refunds refunds_payment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.refunds
+    ADD CONSTRAINT refunds_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: services services_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1275,4 +1359,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261116120000'),
     ('20261117120000'),
     ('20261118120000'),
-    ('20261119120000');
+    ('20261119120000'),
+    ('20261120120000');

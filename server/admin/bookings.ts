@@ -13,6 +13,16 @@ import { onBookingCancelled } from "../notifications";
  * Always fresh, never cached (AGENTS.md §5). Callers must have checked the user's role.
  */
 
+export type AdminRefund = {
+  id: string;
+  amountPaise: number;
+  status: "creating" | "pending" | "processed" | "failed";
+  source: "admin" | "auto" | "dashboard";
+  reason: string | null;
+  failureReason: string | null;
+  createdAt: string;
+};
+
 /** Serializable booking for admin UIs (server → client props, JSON). */
 export type AdminBooking = {
   id: string;
@@ -35,6 +45,7 @@ export type AdminBooking = {
   paidPaise: number;
   /** Money was taken but the booking is cancelled or flagged: the owner must refund or resolve. */
   refundDue: boolean;
+  refunds: AdminRefund[];
   notes: string | null;
   cancelReason: string | null;
   holdExpiresAt: string | null;
@@ -59,6 +70,7 @@ type BookingRow = {
   cancel_reason: string | null;
   hold_expires_at: Date | null;
   items: AdminBooking["items"] | null;
+  refunds: AdminRefund[] | null;
 };
 
 const bookingColumns = sql`
@@ -70,7 +82,11 @@ const bookingColumns = sql`
   coalesce((select bool_or(p.needs_review) from payments p where p.booking_id = b.id), false) as needs_review,
   (select json_agg(json_build_object('name', i.name_snapshot, 'pricePaise', i.price_snapshot_paise,
                                      'durationMin', i.duration_snapshot_min) order by i.position)
-   from booking_items i where i.booking_id = b.id) as items`;
+   from booking_items i where i.booking_id = b.id) as items,
+  (select json_agg(json_build_object('id', r.id, 'amountPaise', r.amount_paise, 'status', r.status, 'source', r.source,
+                                     'reason', r.reason, 'failureReason', r.failure_reason, 'createdAt', r.created_at)
+                   order by r.created_at)
+   from refunds r where r.booking_id = b.id) as refunds`;
 
 /** Hide lapsed holds and expired rows: they no longer hold a slot. */
 const liveBookings = sql`b.status <> 'expired' and not (b.status = 'pending' and b.hold_expires_at <= now())`;
@@ -96,6 +112,7 @@ function toAdminBooking(r: BookingRow): AdminBooking {
     amountDueNowPaise: r.amount_due_now_paise,
     paidPaise: r.paid_paise,
     refundDue: r.needs_review || (r.status === "cancelled" && r.paid_paise > 0),
+    refunds: r.refunds ?? [],
     notes: r.notes,
     cancelReason: r.cancel_reason,
     holdExpiresAt: r.hold_expires_at?.toISOString() ?? null,

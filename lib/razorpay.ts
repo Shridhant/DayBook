@@ -5,8 +5,8 @@ import { env } from "./env";
 
 /**
  * Minimal Razorpay client (AGENTS.md §7 "Payments"). Plain fetch against the REST API: we need
- * four calls, which doesn't justify the SDK dependency.
- * Docs: https://razorpay.com/docs/api/orders/ and /payments/
+ * five calls, which doesn't justify the SDK dependency.
+ * Docs: https://razorpay.com/docs/api/orders/, /payments/ and /refunds/
  */
 
 const API = "https://api.razorpay.com/v1";
@@ -85,6 +85,23 @@ export const paymentSchema = z.object({
 });
 export type RazorpayPayment = z.infer<typeof paymentSchema>;
 
+export const refundSchema = z.object({
+  id: z.string().startsWith("rfnd_"),
+  payment_id: z.string().startsWith("pay_"),
+  amount: z.number().int(),
+  currency: z.string(),
+  status: z.enum(["pending", "processed", "failed"]),
+  // Razorpay returns [] when there are no notes.
+  notes: z.union([z.record(z.string(), z.string()), z.array(z.unknown())]).nullish(),
+});
+export type RazorpayRefund = z.infer<typeof refundSchema>;
+
+/** Our refund id, stored in the refund's notes so webhooks can match a refund we started. */
+export function refundNoteId(refund: RazorpayRefund): string | null {
+  const notes = refund.notes;
+  return notes && !Array.isArray(notes) && typeof notes.refund_id === "string" ? notes.refund_id : null;
+}
+
 /* ---------- Calls ---------- */
 
 export function createOrder(params: { amountPaise: number; receipt: string; notes?: Record<string, string> }) {
@@ -105,6 +122,20 @@ export function capturePayment(paymentId: string, amountPaise: number) {
   return call("POST", `/payments/${encodeURIComponent(paymentId)}/capture`, paymentSchema, {
     amount: amountPaise,
     currency: "INR",
+  });
+}
+
+/**
+ * Refunds part or all of a captured payment, at normal speed (5–7 working days, no extra fee).
+ * `refundId` is ours: it goes in the receipt and notes so the webhook can match the refund even
+ * if this call times out after Razorpay accepted it.
+ */
+export function createRefund(params: { paymentId: string; amountPaise: number; refundId: string; notes?: Record<string, string> }) {
+  return call("POST", `/payments/${encodeURIComponent(params.paymentId)}/refund`, refundSchema, {
+    amount: params.amountPaise,
+    speed: "normal",
+    receipt: params.refundId.slice(0, 40),
+    notes: { ...params.notes, refund_id: params.refundId },
   });
 }
 

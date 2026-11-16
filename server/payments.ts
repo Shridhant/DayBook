@@ -129,7 +129,8 @@ export async function recordPayment(payment: RazorpayPayment): Promise<{ outcome
       return result(payment.status === "failed" ? "failed" : "processing");
     }
 
-    if (payment.status === "refunded") return result("needs_review"); // refunds are a phase 2 flow
+    // A payment event that arrives after a refund. Refunds are tracked in server/refunds.ts; nothing to record here.
+    if (payment.status === "refunded") return result("needs_review");
 
     // authorized or captured: record it, never downgrading captured → authorized.
     await tx`
@@ -176,7 +177,7 @@ export async function recordPayment(payment: RazorpayPayment): Promise<{ outcome
       row.booking_id,
       payment.id,
       booking.status === "cancelled"
-        ? "A payment arrived for a booking that was already cancelled. Refund it from the Razorpay dashboard."
+        ? "A payment arrived for a booking that was already cancelled. Refund it from the booking in the admin."
         : "The customer paid after their hold expired and someone else took the slot. Contact them to rebook or refund.",
     );
     return result("needs_review");

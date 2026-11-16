@@ -3,8 +3,9 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { sql } from "@/lib/db";
 import { env } from "@/lib/env";
-import { paymentSchema, verifyWebhookSignature } from "@/lib/razorpay";
+import { paymentSchema, refundSchema, verifyWebhookSignature } from "@/lib/razorpay";
 import { recordPayment, settlePayment, type PaymentOutcome } from "./payments";
+import { applyRefundState } from "./refunds";
 
 /**
  * Razorpay webhooks: the source of truth for payment state (AGENTS.md §7).
@@ -17,18 +18,20 @@ const eventSchema = z.object({
   payload: z
     .object({
       payment: z.object({ entity: paymentSchema }).optional(),
+      refund: z.object({ entity: refundSchema }).optional(),
     })
     .loose(),
 });
 
 export type WebhookResult =
-  | { status: "processed"; event: string; outcome: PaymentOutcome | "ignored" }
+  | { status: "processed"; event: string; outcome: PaymentOutcome | "refund" | "ignored" }
   | { status: "duplicate" }
   | { status: "invalid_signature" }
   | { status: "not_configured" }
   | { status: "invalid_payload" };
 
 const HANDLED = new Set(["payment.authorized", "payment.captured", "payment.failed", "order.paid"]);
+const REFUND_EVENTS = new Set(["refund.created", "refund.processed", "refund.failed"]);
 
 export async function handleRazorpayWebhook(rawBody: string, signature: string | null, eventIdHeader: string | null): Promise<WebhookResult> {
   const secret = env.RAZORPAY_WEBHOOK_SECRET;
@@ -52,9 +55,13 @@ export async function handleRazorpayWebhook(rawBody: string, signature: string |
     returning processed_at`;
   if (stored.processed_at) return { status: "duplicate" };
 
-  let outcome: PaymentOutcome | "ignored" = "ignored";
+  let outcome: PaymentOutcome | "refund" | "ignored" = "ignored";
   const payment = parsed.payload.payment?.entity;
-  if (HANDLED.has(parsed.event) && payment) {
+  const refund = parsed.payload.refund?.entity;
+  if (REFUND_EVENTS.has(parsed.event) && refund) {
+    await applyRefundState(refund);
+    outcome = "refund";
+  } else if (HANDLED.has(parsed.event) && payment) {
     // payment.authorized needs a capture call; the others carry the final state in the signed payload.
     outcome =
       parsed.event === "payment.authorized" ? (await settlePayment(payment.id)).outcome : (await recordPayment(payment)).outcome;

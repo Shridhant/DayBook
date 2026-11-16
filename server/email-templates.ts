@@ -91,7 +91,7 @@ export function ownerPaymentReviewEmail(b: BookingSummary, reason: string, salon
     `Payment needs attention: ${b.code}`,
     reason,
     [...bookingRows(b), ["Customer", `${b.customerName} · ${formatIndianMobile(b.customerPhone)}`]],
-    "Check the booking in the admin and refund from the Razorpay dashboard if needed.",
+    "Check the booking in the admin and refund it from there if needed.",
   );
   return { subject: `Action needed: payment for ${b.code}`, html, text };
 }
@@ -108,4 +108,32 @@ export function customerConfirmationEmail(b: BookingSummary, salon: string, extr
       : `Please let us know at least ${extra.cancelWindowHours} hours before if you can't make it. The calendar invite is attached.`,
   );
   return { subject: `Booking confirmed: ${formatDate(toIst(b.startsAt).date)} at ${formatInstantTime(b.startsAt)} (${b.code})`, html, text };
+}
+
+/** To the customer: a refund has been started. */
+export function customerRefundEmail(b: BookingSummary, amountPaise: number, salon: string): EmailContent {
+  const { html, text } = layout(
+    salon,
+    `Your refund of ${formatINR(amountPaise)} is on its way`,
+    `We've refunded ${formatINR(amountPaise)} for booking ${b.code} to the card, UPI account, bank or wallet you paid with.`,
+    [
+      ["Booking", b.code],
+      ["Appointment", when(b)],
+      ["Refund", formatINR(amountPaise)],
+    ],
+    "Banks usually take 5–7 working days to show it in your account. Reply to this email if it hasn't arrived by then.",
+  );
+  return { subject: `Refund of ${formatINR(amountPaise)} started (${b.code})`, html, text };
+}
+
+/** To the owner: Razorpay couldn't complete a refund, so the money is still with the salon. */
+export function ownerRefundFailedEmail(b: BookingSummary, amountPaise: number, reason: string, salon: string): EmailContent {
+  const { html, text } = layout(
+    salon,
+    `Refund failed: ${b.code}`,
+    `The refund of ${formatINR(amountPaise)} to ${b.customerName} didn't go through. ${reason}`,
+    [...bookingRows(b), ["Customer", `${b.customerName} · ${formatIndianMobile(b.customerPhone)}`]],
+    "Open the booking in the admin to try again, or contact the customer.",
+  );
+  return { subject: `Action needed: refund failed for ${b.code}`, html, text };
 }

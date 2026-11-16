@@ -242,7 +242,7 @@ describe("POST /api/webhooks/razorpay", () => {
   });
 
   it("acknowledges events it doesn't act on", async () => {
-    const response = await webhookRoute(signedWebhook({ event: "refund.created", payload: { tag } }, `${tag}-evt-other`));
+    const response = await webhookRoute(signedWebhook({ event: "payment.dispute.created", payload: { tag } }, `${tag}-evt-other`));
     expect(response.status).toBe(200);
   });
 });

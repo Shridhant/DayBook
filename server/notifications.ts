@@ -2,12 +2,15 @@ import "server-only";
 import type { Sql, TransactionSql } from "postgres";
 import { env } from "@/lib/env";
 import { buildIcs } from "@/lib/ics";
+import { formatINR } from "@/lib/money";
 import { site } from "@/lib/site";
 import { formatLeaveRange } from "@/lib/time";
 import {
   customerConfirmationEmail,
+  customerRefundEmail,
   ownerBookingConfirmedEmail,
   ownerPaymentReviewEmail,
+  ownerRefundFailedEmail,
   type BookingSummary,
   type EmailContent,
 } from "./email-templates";
@@ -129,7 +132,7 @@ export async function onBookingCancelled(db: Db, bookingId: string, byName: stri
   await addNotification(db, {
     type: "booking_cancelled",
     title: `Cancelled: ${b.customerName}`,
-    body: `${b.code} was cancelled by ${byName}${b.paidPaise > 0 ? `. ${b.paidPaise / 100} rupees paid online: refund due.` : "."}`,
+    body: `${b.code} was cancelled by ${byName}${b.paidPaise > 0 ? `. ${formatINR(b.paidPaise)} paid online: refund due.` : "."}`,
     bookingId: b.id,
     dedupeKey: `booking_cancelled:${b.id}`,
   });
@@ -150,4 +153,41 @@ export async function onLeaveRequested(db: Db, leaveId: string): Promise<void> {
     values ('leave_requested', ${`Leave request: ${row.staff_name}`}, ${row.reason ? `${when} · ${row.reason}` : when},
             ${leaveId}, ${`leave_requested:${leaveId}`})
     on conflict (dedupe_key) do nothing`;
+}
+
+async function loadRefund(db: Db, refundId: string) {
+  const [row] = await db<{ booking_id: string; amount_paise: number }[]>`select booking_id, amount_paise from refunds where id = ${refundId}`;
+  return row;
+}
+
+/** Razorpay accepted a refund: tell the customer (if they gave an email). Owner already knows: they clicked it. */
+export async function onRefundStarted(db: Db, refundId: string): Promise<void> {
+  const refund = await loadRefund(db, refundId);
+  if (!refund) return;
+  const b = await loadSummary(db, refund.booking_id);
+  if (!b?.customerEmail) return;
+  await queueEmail(db, {
+    to: b.customerEmail,
+    dedupeKey: `customer_refund:${refundId}`,
+    content: customerRefundEmail(b, refund.amount_paise, site.name),
+  });
+}
+
+/** A refund was rejected or failed: the money is still with the salon and someone has to act. */
+export async function onRefundFailed(db: Db, refundId: string, reason: string): Promise<void> {
+  const refund = await loadRefund(db, refundId);
+  if (!refund) return;
+  const b = await loadSummary(db, refund.booking_id);
+  if (!b) return;
+  await addNotification(db, {
+    type: "refund_failed",
+    title: `Refund failed: ${b.code}`,
+    body: `${formatINR(refund.amount_paise)} to ${b.customerName}. ${reason}`,
+    bookingId: b.id,
+    dedupeKey: `refund_failed:${refundId}`,
+  });
+  const email = ownerRefundFailedEmail(b, refund.amount_paise, reason, site.name);
+  for (const to of env.OWNER_NOTIFY_EMAILS) {
+    await queueEmail(db, { to, dedupeKey: `owner_refund_failed:${refundId}:${to}`, content: email });
+  }
 }
