@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { AdminThemeSync, THEME_SCRIPT } from "@/components/admin/theme";
+import { AdminThemeSync } from "@/components/admin/theme";
 import { StaffShell } from "@/components/staff/staff-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { site } from "@/lib/site";
@@ -18,7 +18,6 @@ export const metadata: Metadata = {
 export default function StaffLayout({ children }: LayoutProps<"/staff">) {
   return (
     <div className="surface-app min-h-dvh bg-surface text-ink">
-      <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       <AdminThemeSync />
       <Suspense fallback={<PortalSkeleton />}>
         <StaffGate>{children}</StaffGate>

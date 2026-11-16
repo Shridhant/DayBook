@@ -4,16 +4,15 @@ import { Moon, Sun } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { THEME_EVENT, THEME_KEY } from "@/lib/admin-theme";
 
 /**
  * Admin-only dark mode. The class lives on <html> (AGENTS.md §10) so portalled overlays inherit it,
  * and it's removed when leaving the admin so the public site stays light.
  */
 
-const KEY = "daybook-admin-theme";
-const EVENT = "daybook-theme-change";
-
-export const THEME_SCRIPT = `try{document.documentElement.classList.toggle('dark',localStorage.getItem('${KEY}')==='dark')}catch(e){}`;
+const KEY = THEME_KEY;
+const EVENT = THEME_EVENT;
 
 function read(): boolean {
   try {
