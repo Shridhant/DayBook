@@ -1,11 +1,14 @@
 -- DEVELOPMENT SEED ONLY. Never run against production.
 -- Re-runnable: wipes the catalog, staff, bookings and content tables first.
+-- Logins survive: `staff` is emptied with DELETE, not TRUNCATE … CASCADE, which would also empty
+-- `users` (users.staff_id references staff) and lock everyone out. Staff logins come back unlinked.
 begin;
 
 truncate payment_events, payments, booking_items, bookings, customers,
-         staff_leave, staff_shifts, staff_services, staff, services, service_categories,
+         staff_leave, staff_shifts, staff_services, services, service_categories,
          portfolio_items, instagram_posts, testimonials, salon_closures, opening_hours
          restart identity cascade;
+delete from staff;
 
 update settings set salon_name = 'Daybook', booking_amount_type = 'fixed', booking_amount_fixed_paise = 50000;
 
@@ -35,6 +38,17 @@ from (values
   ('care-removal', 'Gel / extension removal',   'removal',              'Safe soak-off removal with nail care.',                40000,  false, 30,  null,   1)
 ) as s(cat, name, slug, description, price, is_from, minutes, override, sort)
 join service_categories c on c.slug = s.cat;
+
+-- Placeholder service photos (public/placeholders). Real photos replace these in Services & prices.
+update services sv set image_path = '/placeholders/' || p.file
+from (values
+  ('classic-manicure', '02-nude-sheer.svg'), ('gel-polish-manicure', '01-cherry-gloss.svg'),
+  ('spa-pedicure', '10-coral-pop.svg'),      ('gel-pedicure', '08-sage-matte.svg'),
+  ('gel-extensions', '11-milky-ombre.svg'),  ('acrylic-extensions', '05-midnight.svg'),
+  ('refill', '09-gold-french.svg'),          ('nail-art-full-set', '07-cerise-art.svg'),
+  ('french-chrome', '03-chrome-pink.svg'),   ('removal', '06-lilac-dots.svg')
+) as p(slug, file)
+where sv.slug = p.slug;
 
 insert into staff (name, slug, specialties, sort_order) values
   ('Riya Sharma',   'riya-sharma',   'Extensions, nail art',  1),

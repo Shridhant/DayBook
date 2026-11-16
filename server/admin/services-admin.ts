@@ -1,6 +1,7 @@
 import "server-only";
 import type { TransactionSql } from "postgres";
 import { sql } from "@/lib/db";
+import { deleteUpload } from "../uploads";
 import { AdminError, notFound, refreshPublic } from "./http";
 import { uniqueSlug } from "./staff-admin";
 
@@ -18,6 +19,7 @@ export type AdminService = {
   active: boolean;
   sortOrder: number;
   staffIds: string[];
+  imagePath: string | null;
 };
 
 export type AdminCategory = { id: string; name: string; sortOrder: number; serviceCount: number };
@@ -29,7 +31,8 @@ export async function listServicesAdmin(): Promise<{ categories: AdminCategory[]
       from service_categories c order by c.sort_order, c.name`,
     sql<
       { id: string; category_id: string; name: string; description: string | null; price_paise: number; price_is_from: boolean;
-        duration_min: number; booking_amount_override_paise: number | null; active: boolean; sort_order: number; staff_ids: string[] | null }[]
+        duration_min: number; booking_amount_override_paise: number | null; active: boolean; sort_order: number; staff_ids: string[] | null;
+        image_path: string | null }[]
     >`
       select s.*, (select array_agg(ss.staff_id) from staff_services ss where ss.service_id = s.id) as staff_ids
       from services s order by s.sort_order, s.name`,
@@ -48,6 +51,7 @@ export async function listServicesAdmin(): Promise<{ categories: AdminCategory[]
       active: s.active,
       sortOrder: s.sort_order,
       staffIds: s.staff_ids ?? [],
+      imagePath: s.image_path,
     })),
   };
 }
@@ -63,6 +67,7 @@ export type ServiceInput = {
   active: boolean;
   /** Artists who can do this service; replaces the current list. */
   staffIds: string[];
+  imagePath: string | null;
 };
 
 async function assertCategory(categoryId: string) {
@@ -81,9 +86,9 @@ export async function createService(input: ServiceInput): Promise<{ id: string }
   const id = await sql.begin(async (tx) => {
     const [row] = await tx<{ id: string }[]>`
       insert into services (category_id, name, slug, description, price_paise, price_is_from, duration_min,
-                            booking_amount_override_paise, active, sort_order)
+                            booking_amount_override_paise, active, image_path, sort_order)
       values (${input.categoryId}, ${input.name}, ${slug}, ${input.description || null}, ${input.pricePaise}, ${input.priceIsFrom},
-              ${input.durationMin}, ${input.bookingAmountOverridePaise}, ${input.active},
+              ${input.durationMin}, ${input.bookingAmountOverridePaise}, ${input.active}, ${input.imagePath},
               (select coalesce(max(sort_order), 0) + 1 from services where category_id = ${input.categoryId}))
       returning id`;
     await writeServiceStaff(tx, row.id, input.staffIds);
@@ -95,7 +100,7 @@ export async function createService(input: ServiceInput): Promise<{ id: string }
 
 export async function updateService(id: string, input: ServiceInput) {
   await assertCategory(input.categoryId);
-  const [current] = await sql<{ name: string }[]>`select name from services where id = ${id}`;
+  const [current] = await sql<{ name: string; image_path: string | null }[]>`select name, image_path from services where id = ${id}`;
   if (!current) throw notFound("Service");
   const slug = input.name !== current.name ? await uniqueSlug("services", input.name, id) : null;
   await sql.begin(async (tx) => {
@@ -104,10 +109,11 @@ export async function updateService(id: string, input: ServiceInput) {
         category_id = ${input.categoryId}, name = ${input.name}, slug = coalesce(${slug}, slug),
         description = ${input.description || null}, price_paise = ${input.pricePaise}, price_is_from = ${input.priceIsFrom},
         duration_min = ${input.durationMin}, booking_amount_override_paise = ${input.bookingAmountOverridePaise},
-        active = ${input.active}
+        active = ${input.active}, image_path = ${input.imagePath}
       where id = ${id}`;
     await writeServiceStaff(tx, id, input.staffIds);
   });
+  if (current.image_path !== input.imagePath) await deleteUpload(current.image_path);
   refreshPublic("catalog");
 }
 
@@ -115,8 +121,9 @@ export async function updateService(id: string, input: ServiceInput) {
 export async function deleteService(id: string) {
   const [used] = await sql`select 1 from booking_items where service_id = ${id} limit 1`;
   if (used) throw new AdminError(409, "in_use", "This service has bookings. Hide it instead of deleting it.");
-  const [row] = await sql`delete from services where id = ${id} returning id`;
+  const [row] = await sql<{ image_path: string | null }[]>`delete from services where id = ${id} returning image_path`;
   if (!row) throw notFound("Service");
+  await deleteUpload(row.image_path);
   refreshPublic("catalog");
 }
 

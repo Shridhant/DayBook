@@ -1,6 +1,7 @@
 "use client";
 
-import { FolderPlus, Plus, Scissors, Trash2 } from "lucide-react";
+import { FolderPlus, ImageIcon, Plus, Scissors, Trash2 } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 import { Chip } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { formatINR, paiseToRupeesInput } from "@/lib/money";
 import { formatDuration } from "@/lib/time";
 import type { AdminCategory, AdminService } from "@/server/admin/services-admin";
 import type { StaffListItem } from "@/server/admin/staff-admin";
-import { adminFetch, RowActions, useMutation } from "./admin-kit";
+import { adminFetch, ImageUpload, RowActions, useMutation } from "./admin-kit";
 
 type Form = {
   categoryId: string;
@@ -24,6 +25,7 @@ type Form = {
   bookingAmountOverride: string;
   active: boolean;
   staffIds: string[];
+  imagePath: string | null;
 };
 
 const DURATIONS = Array.from({ length: 48 }, (_, i) => (i + 1) * 15).filter((m) => m <= 480);
@@ -40,8 +42,20 @@ function toForm(s: AdminService | null, categoryId: string): Form {
         bookingAmountOverride: s.bookingAmountOverridePaise === null ? "" : paiseToRupeesInput(s.bookingAmountOverridePaise),
         active: s.active,
         staffIds: s.staffIds,
+        imagePath: s.imagePath,
       }
-    : { categoryId, name: "", description: "", price: "", priceIsFrom: false, durationMin: 60, bookingAmountOverride: "", active: true, staffIds: [] };
+    : {
+        categoryId,
+        name: "",
+        description: "",
+        price: "",
+        priceIsFrom: false,
+        durationMin: 60,
+        bookingAmountOverride: "",
+        active: true,
+        staffIds: [],
+        imagePath: null,
+      };
 }
 
 export function ServicesManager({
@@ -135,11 +149,20 @@ export function ServicesManager({
                     <tbody>
                       {list.map((s) => (
                         <tr key={s.id} className="hover:bg-canvas/60">
-                          <td className="td truncate pl-5">
-                            <button type="button" className="text-left font-medium hover:underline" onClick={() => open(s)}>
-                              {s.name}
-                            </button>
-                            {!s.active && <Chip className="ml-2">Hidden</Chip>}
+                          <td className="td pl-5">
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <span className="relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-canvas text-muted">
+                                {s.imagePath ? (
+                                  <Image src={s.imagePath} alt="" fill sizes="36px" className="object-cover" />
+                                ) : (
+                                  <ImageIcon className="size-4" aria-label="No photo" />
+                                )}
+                              </span>
+                              <button type="button" className="truncate text-left font-medium hover:underline" onClick={() => open(s)}>
+                                {s.name}
+                              </button>
+                              {!s.active && <Chip>Hidden</Chip>}
+                            </div>
                           </td>
                           <td className="td tabular-nums">{formatDuration(s.durationMin)}</td>
                           <td className="td text-right tabular-nums">
@@ -189,6 +212,21 @@ export function ServicesManager({
               </>
             }
           >
+            <div className="flex items-start gap-4">
+              <ImageUpload
+                kind="services"
+                value={editing.form.imagePath}
+                onChange={(img) => patch({ imagePath: img?.path ?? null })}
+                label="Add photo"
+                className="w-28 shrink-0"
+              />
+              <div className="pt-1 text-muted">
+                <p className="font-medium text-ink">Photo</p>
+                <p className="mt-0.5 text-xs">
+                  Shown on the website and when customers book. A clear, close-up photo of this service, ideally portrait (4:5).
+                </p>
+              </div>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Name" error={error?.field === "name" ? error.message : undefined} className="sm:col-span-2">
                 <Input value={editing.form.name} maxLength={80} onChange={(e) => patch({ name: e.target.value })} />

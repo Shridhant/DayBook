@@ -8,7 +8,7 @@ import { Dialog as RDialog } from "radix-ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FilterChip } from "@/components/ui/choice";
-import { PageSection, SectionHeader } from "@/components/ui/page-section";
+import { Muted, PageSection, SectionHeader } from "@/components/ui/page-section";
 import { modalIn, SURFACE_SPRING } from "@/lib/motion";
 import { useMotionSafe } from "@/lib/use-motion-safe";
 import type { Catalog } from "@/server/catalog";
@@ -27,12 +27,21 @@ export function PortfolioSection({ items, categories }: { items: PortfolioItem[]
     [categories, items],
   );
   const visible = filter === ALL ? items : items.filter((i) => i.categoryId === filter);
+  const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? null;
 
   if (items.length === 0) return null;
 
   return (
     <PageSection id="work" className="scroll-mt-16">
-      <SectionHeader eyebrow="Portfolio" title="Recent work" lead="A few of our favourite sets. Tap any look to see it bigger." />
+      <SectionHeader
+        eyebrow="Gallery"
+        title={
+          <>
+            Step into our work, <Muted>set by set.</Muted>
+          </>
+        }
+        lead="A few of our favourite sets. Tap any look to see it bigger, then book it."
+      />
 
       {usedCategories.length > 1 && (
         <div className="no-scrollbar -mx-4 mb-6 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Filter by category">
@@ -47,7 +56,7 @@ export function PortfolioSection({ items, categories }: { items: PortfolioItem[]
         </div>
       )}
 
-      <motion.ul layout={!reduce} className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4">
+      <motion.ul layout={!reduce} className="grid grid-cols-2 gap-x-3 gap-y-6 md:grid-cols-3 md:gap-x-4 md:gap-y-8 xl:grid-cols-4">
         <AnimatePresence initial={false}>
           {visible.map((item, index) => (
             <motion.li
@@ -60,7 +69,7 @@ export function PortfolioSection({ items, categories }: { items: PortfolioItem[]
               <button
                 type="button"
                 onClick={() => setOpen(index)}
-                className="group relative block aspect-[4/5] w-full overflow-hidden rounded-2xl bg-canvas outline-none focus-visible:ring-3 focus-visible:ring-brand/40"
+                className="group relative block aspect-[4/5] w-full overflow-hidden rounded-[20px] bg-canvas outline-none focus-visible:ring-3 focus-visible:ring-brand/40"
                 aria-label={`View ${item.caption ?? item.alt}`}
               >
                 <Image
@@ -71,6 +80,12 @@ export function PortfolioSection({ items, categories }: { items: PortfolioItem[]
                   className="object-cover transition-transform duration-500 [@media(hover:hover)]:group-hover:scale-[1.03]"
                 />
               </button>
+              {item.caption && (
+                <div className="mt-2.5 px-1">
+                  <p className="truncate text-[15px] font-medium md:text-[17px]">{item.caption}</p>
+                  {categoryName(item.categoryId) && <p className="truncate text-[13px] text-muted md:text-[14px]">{categoryName(item.categoryId)}</p>}
+                </div>
+              )}
             </motion.li>
           ))}
         </AnimatePresence>

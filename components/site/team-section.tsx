@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { PageSection, SectionHeader } from "@/components/ui/page-section";
+import { Muted, PageSection, SectionHeader } from "@/components/ui/page-section";
 import { Reveal } from "@/components/ui/reveal";
 import type { CatalogStaff } from "@/server/catalog";
 
@@ -16,8 +16,16 @@ function initials(name: string) {
 export function TeamSection({ staff }: { staff: CatalogStaff[] }) {
   if (staff.length === 0) return null;
   return (
-    <PageSection id="team" tone="canvas" className="scroll-mt-16">
-      <SectionHeader eyebrow="Team" title="Meet the artists" lead="Book your favourite, or let us match you with whoever is free first." />
+    <PageSection id="team" className="scroll-mt-16">
+      <SectionHeader
+        eyebrow="Team"
+        title={
+          <>
+            Meet the artists <Muted>behind every set.</Muted>
+          </>
+        }
+        lead="Book your favourite, or let us match you with whoever is free first."
+      />
       <ul className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
         {staff.map((s, i) => (
           <Reveal key={s.id} as="li" index={i}>
@@ -26,7 +34,7 @@ export function TeamSection({ staff }: { staff: CatalogStaff[] }) {
               className="group block rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-brand/40"
               aria-label={`Book with ${s.name}`}
             >
-              <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-hover">
+              <div className="relative aspect-[4/5] overflow-hidden rounded-[20px] bg-hover">
                 {s.photoPath ? (
                   <Image
                     src={s.photoPath}

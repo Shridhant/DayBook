@@ -8,7 +8,7 @@ import { StickyCta } from "@/components/site/sticky-cta";
 import { TeamSection } from "@/components/site/team-section";
 import { TestimonialsSection } from "@/components/site/testimonials-section";
 import { VisitSection } from "@/components/site/visit-section";
-import { PageSection, SectionHeader } from "@/components/ui/page-section";
+import { Muted, PageSection, SectionHeader } from "@/components/ui/page-section";
 import { site } from "@/lib/site";
 import { minutesToTime } from "@/lib/time";
 import { getCatalog, type Catalog } from "@/server/catalog";
@@ -51,19 +51,27 @@ export default async function HomePage() {
     getTestimonials(),
   ]);
 
-  const heroImages = (portfolio.some((p) => p.featured) ? portfolio.filter((p) => p.featured) : portfolio).slice(0, 2);
+  const heroImage = portfolio.find((p) => p.featured) ?? portfolio[0];
   const reels = posts.filter((p) => p.placement !== "reviews");
   const reviewReels = posts.filter((p) => p.placement === "reviews");
 
   return (
     <main>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(catalog)).replace(/</g, "\\u003c") }} />
-      <Hero images={heroImages} />
+      <Hero image={heroImage} staff={catalog.staff} categories={catalog.categories} />
       <ServicesSection catalog={catalog} />
       <PortfolioSection items={portfolio} categories={catalog.categories} />
       {reels.length > 0 && (
-        <PageSection tone="canvas">
-          <SectionHeader eyebrow="Instagram" title="Fresh from the studio" lead="Tap a reel to watch it here." />
+        <PageSection>
+          <SectionHeader
+            eyebrow="Instagram"
+            title={
+              <>
+                Fresh from <Muted>the studio.</Muted>
+              </>
+            }
+            lead="Tap a reel to watch it here."
+          />
           <ReelsCarousel posts={reels} instagramUrl={site.instagramUrl} />
         </PageSection>
       )}

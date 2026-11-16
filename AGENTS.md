@@ -68,7 +68,7 @@ npm run typecheck      # next typegen && tsc --noEmit (route types like LayoutPr
 npm test               # vitest
 npm run db:migrate     # dbmate up (DATABASE_URL)
 npm run db:new -- name # dbmate new <name>
-npm run db:seed        # load db/seed.sql (wipes catalog/bookings; a non-local DB needs `-- --yes`)
+npm run db:seed        # load db/seed.sql (wipes catalog/bookings, keeps logins; staff logins need re-linking; a non-local DB needs `-- --yes`)
 npm run db:demo        # realistic demo bookings ±14 days around today (dev only; re-runnable, customers 99999xxxxx)
 npm run db:test:prepare        # apply migrations to the test database
 npm run admin:create-user -- --role owner --name "Name" --email you@example.com   # prompts for a hidden password
@@ -257,6 +257,7 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - Parameterised SQL only.
 - No secrets in client bundles, logs, or git. `.env*.local` is gitignored; `.env.example` lists every variable with no values.
 - Uploaded images: check MIME type and size, re-encode/resize server-side, random filenames, never trust the original name. Implemented in `server/uploads.ts`: decoded with sharp (not trusted by extension), resized to ≤1600px, WebP, **all metadata stripped (incl. GPS)**, stored on the VPS disk under `UPLOAD_DIR` (default `./storage/uploads`, gitignored) and served by `app/uploads/[...path]/route.ts`. **Back up `UPLOAD_DIR` together with the database.**
+- Service photos (`services.image_path`) use upload kind `services`, which only the owner may upload (prices and services are owner-only). The seed points them at `/placeholders/*.svg`.
 - File-system calls on runtime paths (like `UPLOAD_DIR`) need `/*turbopackIgnore: true*/`, or the build traces the whole project into the deploy output.
 - Instagram embeds: accept only `https://www.instagram.com/(p|reel)/<id>/` URLs; validate before storing.
 - Return generic error messages to clients; log details server-side.
@@ -276,6 +277,7 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - Every async action has loading, success and error states. Payment failures must tell the user clearly whether they were charged.
 - **Reuse `components/ui/` before writing new UI.** New shared components go there and get an example on the dev-only `/kit` page (`app/kit/`).
 - Dark mode toggles the `dark` class on `<html>` (never on a wrapper div), so portalled overlays inherit it.
+- **Landing page look** (owner's inspiration, 2026-11-17): the page is grey (`bg-canvas`) and every section is a white rounded panel (`PageSection`). Headings are two-tone (`<Muted>` for the second half), labelled `/Services` (`SectionLabel`), with the lead and actions on the right from `md`. The hero is one wide rounded photo with text, artist faces and category pills over it. Services open with a photo tile per category.
 - **One file per salon:** name, brand colours, hero headline and contact details live in `lib/site.ts` (`brandCss()` injects the colours in the root layout). Never hardcode the salon name or brand colours elsewhere, including emails, Razorpay Checkout, the OG image and `global-error.tsx`.
 - **Demo mode** (`NEXT_PUBLIC_DEMO_MODE=1`, `lib/demo.ts`): a "demo / test payments" strip on every page and Razorpay test hints at checkout. For the sales demo only, never for a real salon. Demo bookings' payments use fake ids, so refunding them fails; demo refunds with a real test-mode booking.
 - The admin/staff dark-mode and sidebar-collapse script runs once from the root layout `<head>` (`lib/admin-theme.ts`), never from a nested layout: React re-renders those on the client, where inline scripts don't run. The collapsed desktop sidebar is `<html data-sidebar-collapsed>`; style it with the `rail:` variant (only inside the desktop `[data-rail]` sidebar, never the mobile drawer).

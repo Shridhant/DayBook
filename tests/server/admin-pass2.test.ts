@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { sql } from "@/lib/db";
 import { addDays, istToday, weekdayOf } from "@/lib/time";
 import { createInstagramPost, deleteInstagramPost } from "@/server/admin/content-admin";
+import { serviceSchema } from "@/server/admin/schemas";
 import { createService, deleteService, listServicesAdmin, updateService } from "@/server/admin/services-admin";
 import { addClosure, deleteClosure } from "@/server/admin/settings-admin";
 import { addLeave, createStaff, setStaffShifts, updateStaffProfile } from "@/server/admin/staff-admin";
@@ -112,6 +113,7 @@ describe("services", () => {
       bookingAmountOverridePaise: null,
       active: true,
       staffIds: [ids.staffA],
+      imagePath: null,
     });
     let svc = (await listServicesAdmin()).services.find((s) => s.id === id);
     expect(svc).toMatchObject({ pricePaise: 90000, staffIds: [ids.staffA] });
@@ -121,6 +123,32 @@ describe("services", () => {
     svc = (await listServicesAdmin()).services.find((s) => s.id === id);
     expect(svc).toMatchObject({ pricePaise: 95000, staffIds: [] });
     ids.service = id;
+  });
+
+  it("keeps one photo per service, removing the replaced upload", async () => {
+    const svc = (await listServicesAdmin()).services.find((s) => s.id === ids.service);
+    if (!svc) throw new Error("service missing");
+    const image = () => sharp({ create: { width: 40, height: 50, channels: 3, background: "#f0c" } }).png().toBuffer();
+    const first = await saveImage(await image(), "services");
+    const second = await saveImage(await image(), "services");
+    await updateService(ids.service, { ...svc, imagePath: first.path });
+    await updateService(ids.service, { ...svc, imagePath: second.path });
+    expect(await readUpload(first.path)).toBeNull();
+    expect((await listServicesAdmin()).services.find((s) => s.id === ids.service)?.imagePath).toBe(second.path);
+    await updateService(ids.service, { ...svc, imagePath: null });
+    expect(await readUpload(second.path)).toBeNull();
+  });
+
+  it("accepts only uploaded service photos or bundled placeholders", () => {
+    const base = { categoryId: ids.cat, name: "Gel", price: "900", priceIsFrom: false, durationMin: 45, bookingAmountOverride: "", active: true, staffIds: [] };
+    expect(serviceSchema.safeParse(base).success).toBe(true);
+    const ok = (imagePath: unknown) => serviceSchema.safeParse({ ...base, imagePath }).success;
+    expect(ok("/uploads/services/0b9b2c1e-1111-4222-8333-944445555666.webp")).toBe(true);
+    expect(ok("/placeholders/01-cherry-gloss.svg")).toBe(true);
+    expect(ok(null)).toBe(true);
+    expect(ok("/uploads/staff/0b9b2c1e-1111-4222-8333-944445555666.webp")).toBe(false);
+    expect(ok("https://evil.example/x.jpg")).toBe(false);
+    expect(ok("/placeholders/../.env")).toBe(false);
   });
 
   it("refuses to delete a service that has bookings", async () => {

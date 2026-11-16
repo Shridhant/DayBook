@@ -20,6 +20,7 @@ export type CatalogService = {
   pricePaise: number;
   priceIsFrom: boolean;
   durationMin: number;
+  imagePath: string | null;
 };
 
 export type CatalogStaff = {
@@ -54,8 +55,8 @@ export async function getCatalog(): Promise<Catalog> {
       where exists (select 1 from services s where s.category_id = service_categories.id and s.active)
       order by sort_order, name`,
     sql<{ id: string; slug: string; name: string; description: string | null; category_id: string;
-          price_paise: number; price_is_from: boolean; duration_min: number }[]>`
-      select s.id, s.slug, s.name, s.description, s.category_id, s.price_paise, s.price_is_from, s.duration_min
+          price_paise: number; price_is_from: boolean; duration_min: number; image_path: string | null }[]>`
+      select s.id, s.slug, s.name, s.description, s.category_id, s.price_paise, s.price_is_from, s.duration_min, s.image_path
       from services s join service_categories c on c.id = s.category_id
       where s.active order by c.sort_order, s.sort_order, s.name`,
     sql<{ id: string; slug: string; name: string; specialties: string | null; photo_path: string | null }[]>`
@@ -83,6 +84,7 @@ export async function getCatalog(): Promise<Catalog> {
       pricePaise: s.price_paise,
       priceIsFrom: s.price_is_from,
       durationMin: s.duration_min,
+      imagePath: s.image_path,
     })),
     staff: staff.map((s) => ({
       id: s.id,

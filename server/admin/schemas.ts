@@ -62,6 +62,11 @@ export const serviceSchema = z.object({
   bookingAmountOverride: optionalRupees,
   active: z.boolean(),
   staffIds: z.array(z.uuid()).max(100),
+  // A new upload, or the bundled placeholder it already has (saved unchanged).
+  imagePath: z
+    .union([uploadPath("services"), z.string().regex(/^\/placeholders\/[a-z0-9-]+\.(svg|webp|jpg)$/, "Upload the image first.")])
+    .nullish()
+    .transform((v) => v ?? null),
 });
 export const categorySchema = z.object({ name: text(40).min(2, "Enter a name") });
 

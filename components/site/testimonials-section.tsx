@@ -1,5 +1,4 @@
-import { Card } from "@/components/ui/card";
-import { PageSection, SectionHeader } from "@/components/ui/page-section";
+import { Muted, PageSection, SectionHeader } from "@/components/ui/page-section";
 import { Rating } from "@/components/ui/rating";
 import { site } from "@/lib/site";
 import type { InstagramPost, Testimonial } from "@/server/content";
@@ -14,7 +13,12 @@ export function TestimonialsSection({ testimonials, reviewReels }: { testimonial
     <PageSection id="reviews" className="scroll-mt-16">
       <SectionHeader
         eyebrow="Reviews"
-        title="Kind words"
+        align="center"
+        title={
+          <>
+            Real clients, <Muted>real results.</Muted>
+          </>
+        }
         actions={
           showGoogle ? (
             <a
@@ -35,14 +39,17 @@ export function TestimonialsSection({ testimonials, reviewReels }: { testimonial
         <ul className="no-scrollbar -mx-4 flex snap-x scroll-px-4 gap-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:scroll-px-0 sm:px-0 lg:grid lg:grid-cols-3 lg:overflow-visible">
           {testimonials.map((t) => (
             <li key={t.id} className="w-[85vw] max-w-sm shrink-0 snap-start lg:w-auto lg:max-w-none">
-              <Card className="flex h-full flex-col rounded-2xl p-6">
-                <Rating value={t.rating} />
-                <blockquote className="mt-4 flex-1 text-[16px] leading-relaxed">&ldquo;{t.quote}&rdquo;</blockquote>
-                <p className="mt-5 text-[14px]">
+              <figure className="flex h-full flex-col rounded-[20px] bg-canvas p-6 md:p-7">
+                <span aria-hidden className="text-[44px] leading-none font-medium text-brand">
+                  &ldquo;
+                </span>
+                <Rating value={t.rating} className="mt-2" />
+                <blockquote className="mt-4 flex-1 text-[17px] leading-relaxed">{t.quote}</blockquote>
+                <figcaption className="mt-5 text-[14px]">
                   <span className="font-medium">{t.name}</span>
                   {t.serviceLabel && <span className="text-muted"> · {t.serviceLabel}</span>}
-                </p>
-              </Card>
+                </figcaption>
+              </figure>
             </li>
           ))}
         </ul>

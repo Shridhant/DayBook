@@ -24,10 +24,10 @@ export function SiteHeader() {
     <header
       className={cn(
         "sticky top-0 z-40 transition-[background-color,border-color,backdrop-filter] duration-200",
-        scrolled ? "border-b border-line bg-surface/85 backdrop-blur-md" : "border-b border-transparent bg-surface",
+        scrolled ? "border-b border-line bg-canvas/85 backdrop-blur-md" : "border-b border-transparent bg-canvas",
       )}
     >
-      <div className="container-page flex h-14 items-center justify-between gap-4 md:h-16">
+      <div className="mx-auto flex h-14 w-full max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6 md:h-16 lg:px-8">
         <Link
           href="/"
           className="-ml-1 rounded-full px-1 text-[18px] font-semibold tracking-[-0.02em] outline-none focus-visible:ring-3 focus-visible:ring-brand/30"
@@ -41,7 +41,7 @@ export function SiteHeader() {
               <li key={l.href}>
                 <a
                   href={l.href}
-                  className="rounded-full px-3 py-2 text-[15px] font-medium text-ink/80 transition-colors outline-none hover:bg-hover hover:text-ink focus-visible:ring-3 focus-visible:ring-brand/30"
+                  className="rounded-full px-3.5 py-2 text-[15px] text-ink/70 transition-colors outline-none hover:bg-hover hover:text-ink focus-visible:ring-3 focus-visible:ring-brand/30"
                 >
                   {l.label}
                 </a>

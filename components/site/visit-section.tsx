@@ -3,7 +3,7 @@
 import { MapPin, MessageCircle, Navigation, Phone } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { PageSection, SectionHeader } from "@/components/ui/page-section";
+import { Muted, PageSection, SectionHeader } from "@/components/ui/page-section";
 import { site, telLink, whatsappLink } from "@/lib/site";
 import { formatTime, istToday, weekdayOf, type Weekday } from "@/lib/time";
 import { useIsClient } from "@/lib/use-is-client";
@@ -29,8 +29,15 @@ export function VisitSection({ openingHours }: { openingHours: Catalog["openingH
   const tel = telLink();
 
   return (
-    <PageSection id="visit" tone="canvas" className="scroll-mt-16">
-      <SectionHeader eyebrow="Visit" title="Come say hi" />
+    <PageSection id="visit" className="scroll-mt-16">
+      <SectionHeader
+        eyebrow="Visit"
+        title={
+          <>
+            Come say hi, <Muted>or call ahead.</Muted>
+          </>
+        }
+      />
       <div className="grid gap-10 lg:grid-cols-2">
         <div>
           {site.address && (

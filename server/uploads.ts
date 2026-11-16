@@ -19,10 +19,10 @@ import { env } from "@/lib/env";
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 const MAX_EDGE = 1600;
 const ACCEPTED = new Set(["jpeg", "png", "webp", "avif", "heif"]);
-export const UPLOAD_KINDS = ["portfolio", "staff", "instagram", "testimonials"] as const;
+export const UPLOAD_KINDS = ["portfolio", "staff", "instagram", "testimonials", "services"] as const;
 export type UploadKind = (typeof UPLOAD_KINDS)[number];
 
-const PUBLIC_PATH = /^\/uploads\/(portfolio|staff|instagram|testimonials)\/[0-9a-f-]{36}\.webp$/;
+const PUBLIC_PATH = /^\/uploads\/(portfolio|staff|instagram|testimonials|services)\/[0-9a-f-]{36}\.webp$/;
 
 export class UploadError extends Error {}
 

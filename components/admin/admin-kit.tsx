@@ -80,7 +80,7 @@ export function ImageUpload({
   label = "Upload photo",
   className,
 }: {
-  kind: "portfolio" | "staff" | "instagram" | "testimonials";
+  kind: "portfolio" | "staff" | "instagram" | "testimonials" | "services";
   value: string | null;
   onChange: (image: UploadedImage | null) => void;
   aspect?: string;

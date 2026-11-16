@@ -2,7 +2,7 @@ import { FRONT_DESK, adminRoute, AdminError } from "@/server/admin/http";
 import { MAX_UPLOAD_BYTES, saveImage, UPLOAD_KINDS, UploadError, type UploadKind } from "@/server/uploads";
 
 /** POST /api/admin/uploads (multipart: file, kind) → { path, width, height } */
-export const POST = adminRoute({ roles: FRONT_DESK }, async ({ request }) => {
+export const POST = adminRoute({ roles: FRONT_DESK }, async ({ request, user }) => {
   const length = Number(request.headers.get("content-length") ?? 0);
   if (length > MAX_UPLOAD_BYTES + 64 * 1024) throw new AdminError(413, "too_large", "Images must be 15 MB or smaller.");
 
@@ -13,6 +13,8 @@ export const POST = adminRoute({ roles: FRONT_DESK }, async ({ request }) => {
   if (typeof kind !== "string" || !UPLOAD_KINDS.includes(kind as UploadKind)) {
     throw new AdminError(400, "invalid_request", "Invalid upload type.");
   }
+  // Services and prices are owner-only (AGENTS.md §8), so are their photos.
+  if (kind === "services" && user.role !== "owner") throw new AdminError(403, "forbidden", "Only the owner can change services.");
   try {
     return await saveImage(Buffer.from(await file.arrayBuffer()), kind as UploadKind);
   } catch (error) {

@@ -102,7 +102,7 @@ function PublicKit() {
         </div>
       </PageSection>
 
-      <PageSection tone="canvas">
+      <PageSection>
         <SectionHeader eyebrow="Services" title="Menu & prices" lead="Transparent pricing. Pay a small amount to book; the rest at the studio." />
         <Tabs label="Service categories" size="public" items={[...categories]} value={cat} onValueChange={setCat} />
         <ul className="mt-6 grid gap-x-10 lg:grid-cols-2">
@@ -142,7 +142,7 @@ function PublicKit() {
         </div>
       </PageSection>
 
-      <PageSection tone="canvas">
+      <PageSection>
         <SectionHeader eyebrow="Booking flow" title="Controls" />
         <div className="grid gap-10 lg:grid-cols-2">
           <Group title="Service rows (multi-select)">

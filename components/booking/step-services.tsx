@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { OptionCard } from "@/components/ui/choice";
 import { Eyebrow } from "@/components/ui/page-section";
 import { formatINR } from "@/lib/money";
@@ -28,6 +29,11 @@ export function ServicesStep({
               <div className="mt-3 space-y-2">
                 {services.map((s) => (
                   <OptionCard key={s.id} selected={selected.includes(s.id)} onClick={() => onToggle(s.id)}>
+                    {s.imagePath && (
+                      <span className="relative size-16 shrink-0 self-start overflow-hidden rounded-xl bg-canvas">
+                        <Image src={s.imagePath} alt="" fill sizes="64px" className="object-cover" />
+                      </span>
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="text-[16px] font-medium">{s.name}</p>
                       {s.description && <p className="mt-0.5 text-[14px] text-muted">{s.description}</p>}
