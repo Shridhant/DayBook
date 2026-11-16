@@ -2,6 +2,7 @@
 
 import { CalendarPlus, Check, Hourglass, MessageCircle, TriangleAlert } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Code } from "@/components/ui/badge";
 import { buildIcs, downloadIcs } from "@/lib/ics";
@@ -34,6 +35,7 @@ export function Confirmation({ outcome, hold, onBookAnother }: { outcome: Outcom
   const services = hold.items.map((i) => i.name).join(", ");
   const Icon = outcome === "confirmed" ? Check : outcome === "processing" ? Hourglass : TriangleAlert;
   const whatsapp = whatsappLink(`Hi! My booking ${hold.code} is on ${when} (${services}).`);
+  const manageHref = `/booking/${hold.code}?k=${hold.manageKey}`;
 
   function addToCalendar() {
     downloadIcs(
@@ -43,7 +45,7 @@ export function Confirmation({ outcome, hold, onBookAnother }: { outcome: Outcom
         title: `${site.name}: ${services}`,
         start,
         end: new Date(hold.endsAt),
-        description: `Booking ${hold.code} with ${hold.staff.name}.`,
+        description: `Booking ${hold.code} with ${hold.staff.name}. Manage it: ${window.location.origin}${manageHref}`,
         location: site.address || undefined,
       }),
     );
@@ -77,6 +79,15 @@ export function Confirmation({ outcome, hold, onBookAnother }: { outcome: Outcom
           {hold.amountDueNowPaise > 0 && <Row label="Paid online" value={formatINR(hold.amountDueNowPaise)} />}
           <Row label="Pay at the studio" value={formatINR(hold.totalPaise - hold.amountDueNowPaise)} />
         </dl>
+        {outcome === "confirmed" && (
+          <p className="mt-4 border-t border-line pt-4 text-[14px] text-muted">
+            Need to change plans?{" "}
+            <Link href={manageHref} className="font-medium text-accent-hover underline decoration-brand/40 underline-offset-4 hover:decoration-brand">
+              Manage or cancel your booking
+            </Link>
+            . Bookmark it, or find it in your confirmation email.
+          </p>
+        )}
       </div>
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">

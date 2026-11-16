@@ -221,6 +221,9 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 
 ### Customers
 - Phone is the identity. Normalise to 10 digits (strip `+91`, `91`, leading `0`), must match `^[6-9]\d{9}$`.
+- **Manage-booking link** (`/booking/<code>?k=<key>`, phase 2): customers never log in, so each online booking has a private link. The key is an HMAC of the booking id (`server/manage-link.ts`, keyed by `BETTER_AUTH_SECRET`): nothing is stored, any email can rebuild it, and a wrong key looks like an unknown booking. It's in the confirmation email (button + .ics description) and on the confirmation screen.
+- What customers may do there follows the cancellation policy (`lib/customer-changes.ts`): **cancel** any time before the start; outside `cancel_window_hours` the booking amount is **refunded automatically** (`refunds.source = 'auto'`), inside it it's kept. **Reschedule** only outside the window, at most `MAX_CUSTOMER_RESCHEDULES` (2) times, keeping the same services, prices and durations (snapshots); same artist by default, any qualified artist if the customer allows. Moves notify the front desk (`booking_rescheduled`) and email a new .ics with the same UID and a higher `SEQUENCE`. Public routes live in `app/api/bookings/manage/*` and are rate-limited (`LIMITS.managePerIp`).
+- Notification/email `dedupe_key`s always include the booking id, so tests (and support) can find every event for a booking.
 
 ---
 

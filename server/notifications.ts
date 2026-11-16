@@ -4,16 +4,18 @@ import { env } from "@/lib/env";
 import { buildIcs } from "@/lib/ics";
 import { formatINR } from "@/lib/money";
 import { site } from "@/lib/site";
-import { formatLeaveRange } from "@/lib/time";
+import { formatDate, formatInstantTime, formatLeaveRange, toIst } from "@/lib/time";
 import {
   customerConfirmationEmail,
   customerRefundEmail,
+  customerRescheduledEmail,
   ownerBookingConfirmedEmail,
   ownerPaymentReviewEmail,
   ownerRefundFailedEmail,
   type BookingSummary,
   type EmailContent,
 } from "./email-templates";
+import { manageUrl } from "./manage-link";
 
 /**
  * Booking events → in-app notifications + queued emails (AGENTS.md §7). Called inside the same
@@ -95,17 +97,27 @@ export async function onBookingConfirmed(db: Db, bookingId: string): Promise<voi
     await queueEmail(db, {
       to: b.customerEmail,
       dedupeKey: `customer_confirmed:${b.id}`,
-      content: customerConfirmationEmail(b, site.name, { address: site.address, cancelWindowHours: settings.cancel_window_hours }),
-      ics: buildIcs({
-        uid: `${b.id}@daybook`,
-        title: `${site.name}: ${b.items.map((i) => i.name).join(", ")}`,
-        start: b.startsAt,
-        end: b.endsAt,
-        description: `Booking ${b.code} with ${b.staffName}.`,
-        location: site.address || undefined,
+      content: customerConfirmationEmail(b, site.name, {
+        address: site.address,
+        cancelWindowHours: settings.cancel_window_hours,
+        manageUrl: manageUrl(b.code, b.id),
       }),
+      ics: bookingIcs(b, 0),
     });
   }
+}
+
+/** Calendar invite for a booking. Same UID for its whole life; `sequence` grows with each move. */
+function bookingIcs(b: BookingSummary, sequence: number) {
+  return buildIcs({
+    uid: `${b.id}@daybook`,
+    title: `${site.name}: ${b.items.map((i) => i.name).join(", ")}`,
+    start: b.startsAt,
+    end: b.endsAt,
+    description: `Booking ${b.code} with ${b.staffName}. Manage it: ${manageUrl(b.code, b.id)}`,
+    location: site.address || undefined,
+    sequence,
+  });
 }
 
 /** Money arrived but the owner must act (refund, slot taken, wrong amount). */
@@ -125,14 +137,18 @@ export async function onPaymentNeedsReview(db: Db, bookingId: string, paymentKey
   }
 }
 
-/** Front desk cancelled a booking. In-app only (the person who cancelled already knows). */
-export async function onBookingCancelled(db: Db, bookingId: string, byName: string): Promise<void> {
+/**
+ * A booking was cancelled (front desk or the customer's manage link). In-app only. `money`
+ * describes what happens to an online payment; by default it's left for the owner to refund.
+ */
+export async function onBookingCancelled(db: Db, bookingId: string, byName: string, money?: string): Promise<void> {
   const b = await loadSummary(db, bookingId);
   if (!b) return;
+  const moneyNote = b.paidPaise > 0 ? ` ${money ?? `${formatINR(b.paidPaise)} paid online: refund due.`}` : "";
   await addNotification(db, {
     type: "booking_cancelled",
     title: `Cancelled: ${b.customerName}`,
-    body: `${b.code} was cancelled by ${byName}${b.paidPaise > 0 ? `. ${formatINR(b.paidPaise)} paid online: refund due.` : "."}`,
+    body: `${b.code} was cancelled by ${byName}.${moneyNote}`,
     bookingId: b.id,
     dedupeKey: `booking_cancelled:${b.id}`,
   });
@@ -160,6 +176,8 @@ async function loadRefund(db: Db, refundId: string) {
   return row;
 }
 
+// Refund keys include the booking id, like every booking event, so they're findable per booking.
+
 /** Razorpay accepted a refund: tell the customer (if they gave an email). Owner already knows: they clicked it. */
 export async function onRefundStarted(db: Db, refundId: string): Promise<void> {
   const refund = await loadRefund(db, refundId);
@@ -168,7 +186,7 @@ export async function onRefundStarted(db: Db, refundId: string): Promise<void> {
   if (!b?.customerEmail) return;
   await queueEmail(db, {
     to: b.customerEmail,
-    dedupeKey: `customer_refund:${refundId}`,
+    dedupeKey: `customer_refund:${b.id}:${refundId}`,
     content: customerRefundEmail(b, refund.amount_paise, site.name),
   });
 }
@@ -184,10 +202,33 @@ export async function onRefundFailed(db: Db, refundId: string, reason: string): 
     title: `Refund failed: ${b.code}`,
     body: `${formatINR(refund.amount_paise)} to ${b.customerName}. ${reason}`,
     bookingId: b.id,
-    dedupeKey: `refund_failed:${refundId}`,
+    dedupeKey: `refund_failed:${b.id}:${refundId}`,
   });
   const email = ownerRefundFailedEmail(b, refund.amount_paise, reason, site.name);
   for (const to of env.OWNER_NOTIFY_EMAILS) {
-    await queueEmail(db, { to, dedupeKey: `owner_refund_failed:${refundId}:${to}`, content: email });
+    await queueEmail(db, { to, dedupeKey: `owner_refund_failed:${b.id}:${refundId}:${to}`, content: email });
+  }
+}
+
+/** The customer moved their booking with the manage link: tell the front desk, send a new invite. */
+export async function onBookingRescheduled(db: Db, bookingId: string, previous: { startsAt: Date; staffName: string }, sequence: number): Promise<void> {
+  const b = await loadSummary(db, bookingId);
+  if (!b) return;
+  const fmt = (d: Date) => `${formatDate(toIst(d).date)} ${formatInstantTime(d)}`;
+  const artist = previous.staffName === b.staffName ? `with ${b.staffName}` : `now with ${b.staffName} (was ${previous.staffName})`;
+  await addNotification(db, {
+    type: "booking_rescheduled",
+    title: `Moved: ${b.customerName}`,
+    body: `${b.code}: ${fmt(previous.startsAt)} → ${fmt(b.startsAt)}, ${artist}`,
+    bookingId: b.id,
+    dedupeKey: `booking_rescheduled:${b.id}:${sequence}`,
+  });
+  if (b.customerEmail) {
+    await queueEmail(db, {
+      to: b.customerEmail,
+      dedupeKey: `customer_rescheduled:${b.id}:${sequence}`,
+      content: customerRescheduledEmail(b, site.name, { address: site.address, manageUrl: manageUrl(b.code, b.id) }),
+      ics: bookingIcs(b, sequence),
+    });
   }
 }

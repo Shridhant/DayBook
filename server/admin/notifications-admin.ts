@@ -5,7 +5,7 @@ import { sql } from "@/lib/db";
 
 export type AdminNotification = {
   id: string;
-  type: "booking_confirmed" | "payment_review" | "booking_cancelled" | "leave_requested";
+  type: "booking_confirmed" | "payment_review" | "booking_cancelled" | "leave_requested" | "refund_failed" | "booking_rescheduled";
   title: string;
   body: string | null;
   bookingCode: string | null;

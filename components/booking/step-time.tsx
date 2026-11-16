@@ -36,6 +36,8 @@ export function TimeStep({
   notice,
   onPick,
   onDate,
+  fetcher = fetchAvailability,
+  title = "When suits you?",
 }: {
   catalog: Catalog;
   serviceIds: string[];
@@ -47,6 +49,9 @@ export function TimeStep({
   notice: string | null;
   onPick: (date: string, slot: SlotDto) => void;
   onDate: (date: string) => void;
+  /** Where times come from (the manage page loads them for an existing booking). */
+  fetcher?: (params: { date: string; serviceIds: string[]; staffId: string | null }, signal?: AbortSignal) => Promise<AvailabilityDto>;
+  title?: string;
 }) {
   const isClient = useIsClient();
 
@@ -68,7 +73,7 @@ export function TimeStep({
   useEffect(() => {
     if (!activeDate || !requestKey) return;
     const controller = new AbortController();
-    fetchAvailability({ date: activeDate, serviceIds, staffId }, controller.signal)
+    fetcher({ date: activeDate, serviceIds, staffId }, controller.signal)
       .then((data) => setResult({ key: requestKey, data }))
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -85,7 +90,7 @@ export function TimeStep({
 
   return (
     <section aria-labelledby="step-time">
-      <StepHeading id="step-time" title="When suits you?" hint="Times are shown in India time (IST)." />
+      <StepHeading id="step-time" title={title} hint="Times are shown in India time (IST)." />
 
       {notice && (
         <Alert tone="warning" className="mt-6">

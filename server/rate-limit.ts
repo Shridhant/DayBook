@@ -15,6 +15,8 @@ export const LIMITS = {
   holdPerPhone: { limit: 6, windowSeconds: 3600 },
   paymentPerIp: { limit: 20, windowSeconds: 600 },
   availabilityPerIp: { limit: 120, windowSeconds: 60 },
+  /** Manage-booking actions (cancel, move). Viewing times uses availabilityPerIp. */
+  managePerIp: { limit: 20, windowSeconds: 600 },
 } satisfies Record<string, RateLimitRule>;
 
 export type RateLimitResult = { allowed: boolean; remaining: number; retryAfterSeconds: number };

@@ -43,11 +43,13 @@ export async function getAvailability(params: {
    * releases their old hold in the same transaction, so it mustn't block their new choice.
    */
   ignoreHoldsOfPhone?: string;
+  /** A booking being moved: its current time mustn't block the new one (customer reschedule). */
+  ignoreBookingId?: string;
   /** Admin bookings (walk-ins, phone): no lead time and a long window; everything else still applies. */
   forAdmin?: boolean;
   now?: Date;
 }): Promise<AvailabilityResult> {
-  const { date, serviceIds, staffId, ignoreHoldsOfPhone, forAdmin } = params;
+  const { date, serviceIds, staffId, ignoreHoldsOfPhone, ignoreBookingId, forAdmin } = params;
   const now = params.now ?? new Date();
   const weekday = weekdayOf(date);
   const day = istDayRange(date);
@@ -101,7 +103,8 @@ export async function getAvailability(params: {
                 ignoreHoldsOfPhone
                   ? sql`and not (status = 'pending' and customer_id in (select id from customers where phone = ${ignoreHoldsOfPhone}))`
                   : sql``
-              }`,
+              }
+              ${ignoreBookingId ? sql`and id <> ${ignoreBookingId}` : sql``}`,
           sql<{ staff_id: string; starts_at: Date; ends_at: Date }[]>`
             select staff_id, starts_at, ends_at from staff_leave
             where status = 'approved' and staff_id in ${sql(staffIds)}

@@ -43,16 +43,19 @@ function rows(pairs: [string, string][]) {
     .join("");
 }
 
-function layout(salon: string, heading: string, intro: string, detail: [string, string][], footer: string) {
+type EmailAction = { label: string; url: string };
+
+function layout(salon: string, heading: string, intro: string, detail: [string, string][], footer: string, action?: EmailAction) {
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f6f6f3;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5">
 <div style="max-width:520px;margin:0 auto;background:#fdfdfc;border:1px solid #e6e6e1;border-radius:12px;padding:24px">
 <p style="margin:0 0 16px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#b8007b">${escapeHtml(salon)}</p>
 <h1 style="margin:0 0 8px;font-size:20px;color:#111827">${escapeHtml(heading)}</h1>
 <p style="margin:0 0 16px;color:#5f6672">${escapeHtml(intro)}</p>
 <table style="border-collapse:collapse">${rows(detail)}</table>
+${action ? `<p style="margin:20px 0 0"><a href="${escapeHtml(action.url)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:#d6008f;color:#ffffff;text-decoration:none;font-weight:600">${escapeHtml(action.label)}</a></p>` : ""}
 <p style="margin:16px 0 0;font-size:13px;color:#5f6672">${escapeHtml(footer)}</p>
 </div></body></html>`;
-  const text = [salon, "", heading, intro, "", ...detail.map(([k, v]) => `${k}: ${v}`), "", footer].join("\n");
+  const text = [salon, "", heading, intro, "", ...detail.map(([k, v]) => `${k}: ${v}`), ...(action ? ["", `${action.label}: ${action.url}`] : []), "", footer].join("\n");
   return { html, text };
 }
 
@@ -97,15 +100,20 @@ export function ownerPaymentReviewEmail(b: BookingSummary, reason: string, salon
 }
 
 /** To the customer: their booking is confirmed. */
-export function customerConfirmationEmail(b: BookingSummary, salon: string, extra: { address: string; cancelWindowHours: number }): EmailContent {
+export function customerConfirmationEmail(
+  b: BookingSummary,
+  salon: string,
+  extra: { address: string; cancelWindowHours: number; manageUrl: string },
+): EmailContent {
   const { html, text } = layout(
     salon,
     `You're booked, ${b.customerName.split(" ")[0]}!`,
     `See you on ${when(b)}.`,
     [...bookingRows(b), ...(extra.address ? ([["Where", extra.address]] as [string, string][]) : [])],
     b.paidPaise > 0
-      ? `Free cancellation up to ${extra.cancelWindowHours} hours before. After that, the amount paid online isn't refundable. The calendar invite is attached.`
+      ? `Free cancellation or a new time up to ${extra.cancelWindowHours} hours before. After that, the amount paid online isn't refundable. The calendar invite is attached.`
       : `Please let us know at least ${extra.cancelWindowHours} hours before if you can't make it. The calendar invite is attached.`,
+    { label: "Manage or cancel booking", url: extra.manageUrl },
   );
   return { subject: `Booking confirmed: ${formatDate(toIst(b.startsAt).date)} at ${formatInstantTime(b.startsAt)} (${b.code})`, html, text };
 }
@@ -136,4 +144,17 @@ export function ownerRefundFailedEmail(b: BookingSummary, amountPaise: number, r
     "Open the booking in the admin to try again, or contact the customer.",
   );
   return { subject: `Action needed: refund failed for ${b.code}`, html, text };
+}
+
+/** To the customer: they moved their booking themselves. */
+export function customerRescheduledEmail(b: BookingSummary, salon: string, extra: { address: string; manageUrl: string }): EmailContent {
+  const { html, text } = layout(
+    salon,
+    "Your booking has a new time",
+    `See you on ${when(b)}.`,
+    [...bookingRows(b), ...(extra.address ? ([["Where", extra.address]] as [string, string][]) : [])],
+    "The updated calendar invite is attached and replaces the old one.",
+    { label: "Manage booking", url: extra.manageUrl },
+  );
+  return { subject: `New time: ${formatDate(toIst(b.startsAt).date)} at ${formatInstantTime(b.startsAt)} (${b.code})`, html, text };
 }

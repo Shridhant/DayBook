@@ -3,6 +3,7 @@ import { indianMobileSchema } from "@/lib/phone";
 import { isDateKey } from "@/lib/time";
 import { AvailabilityError } from "@/server/availability-query";
 import { createHold, HoldError } from "@/server/holds";
+import { manageKey } from "@/server/manage-link";
 import { clientIp, hitRateLimit, LIMITS, tooManyRequests } from "@/server/rate-limit";
 
 /**
@@ -72,6 +73,8 @@ export async function POST(request: Request) {
         totalPaise: hold.totalPaise,
         amountDueNowPaise: hold.amountDueNowPaise,
         items: hold.items,
+        // For the "Manage or cancel" link on the confirmation screen; the same key is in the email.
+        manageKey: manageKey(hold.bookingId),
       },
       { status: 201, headers: noStore },
     );

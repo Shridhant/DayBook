@@ -1,6 +1,8 @@
 "use client";
 
-/** Typed calls to the booking API routes, used by the booking flow. */
+import type { CancelResult, ManagedBooking } from "@/server/manage-booking";
+
+/** Typed calls to the booking API routes, used by the booking flow and the manage page. */
 
 export class ApiError extends Error {
   constructor(
@@ -63,6 +65,7 @@ export type HoldDto = {
   totalPaise: number;
   amountDueNowPaise: number;
   items: { serviceId: string; name: string; pricePaise: number; durationMin: number }[];
+  manageKey: string;
 };
 
 export function createHold(body: {
@@ -106,4 +109,19 @@ export function verifyPayment(body: { orderId: string; paymentId: string; signat
       razorpay_signature: body.signature,
     },
   });
+}
+
+/* ---------- Manage booking (customer link) ---------- */
+
+export function fetchManageAvailability(params: { code: string; key: string; date: string; anyArtist: boolean }, signal?: AbortSignal) {
+  const query = new URLSearchParams({ code: params.code, key: params.key, date: params.date, any: params.anyArtist ? "1" : "0" });
+  return request<AvailabilityDto>(`/api/bookings/manage/availability?${query}`, { signal });
+}
+
+export function cancelManagedBooking(body: { code: string; key: string }) {
+  return request<CancelResult>("/api/bookings/manage/cancel", { method: "POST", json: body });
+}
+
+export function rescheduleManagedBooking(body: { code: string; key: string; date: string; startMinutes: number; anyArtist: boolean }) {
+  return request<{ booking: ManagedBooking }>("/api/bookings/manage/reschedule", { method: "POST", json: body });
 }

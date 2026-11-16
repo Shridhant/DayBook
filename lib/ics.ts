@@ -18,6 +18,8 @@ export function buildIcs(event: {
   end: Date;
   description?: string;
   location?: string;
+  /** Bump when the event changes (e.g. rescheduled) so calendar apps update it instead of keeping the old time. */
+  sequence?: number;
   now?: Date;
 }): string {
   const lines = [
@@ -28,6 +30,7 @@ export function buildIcs(event: {
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
     `UID:${event.uid}`,
+    `SEQUENCE:${event.sequence ?? 0}`,
     `DTSTAMP:${icsDate(event.now ?? new Date())}`,
     `DTSTART:${icsDate(event.start)}`,
     `DTEND:${icsDate(event.end)}`,

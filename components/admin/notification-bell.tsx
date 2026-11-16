@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BellOff, CalendarCheck, CalendarOff, CircleAlert, CircleX } from "lucide-react";
+import { Bell, BellOff, CalendarCheck, CalendarClock, CalendarOff, CircleAlert, CircleX, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,22 @@ import type { AdminNotification } from "@/server/admin/notifications-admin";
 const POLL_MS = 30_000;
 const SOUND_KEY = "daybook-notify-sound";
 
-const ICON = { booking_confirmed: CalendarCheck, payment_review: CircleAlert, booking_cancelled: CircleX, leave_requested: CalendarOff } as const;
-const TONE = { booking_confirmed: "text-success", payment_review: "text-warning", booking_cancelled: "text-muted", leave_requested: "text-warning" } as const;
+const ICON = {
+  booking_confirmed: CalendarCheck,
+  payment_review: CircleAlert,
+  booking_cancelled: CircleX,
+  leave_requested: CalendarOff,
+  refund_failed: Undo2,
+  booking_rescheduled: CalendarClock,
+} as const;
+const TONE = {
+  booking_confirmed: "text-success",
+  payment_review: "text-warning",
+  booking_cancelled: "text-muted",
+  leave_requested: "text-warning",
+  refund_failed: "text-danger",
+  booking_rescheduled: "text-accent",
+} as const;
 
 /** Short two-note chime via Web Audio (no audio file to load). Browsers allow it after any click. */
 function chime() {

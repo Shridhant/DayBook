@@ -32,8 +32,13 @@ export default async function CancellationPolicyPage() {
         </li>
       </ul>
 
-      <h2>How to cancel</h2>
-      <p>Contact us with your booking reference (it starts with &quot;DB-&quot; and is in your confirmation):</p>
+            <h2>How to cancel or change your time</h2>
+      <p>
+        Use the <strong>Manage booking</strong> link in your confirmation email (also shown on the confirmation screen after you book).
+        It lets you cancel any time before your appointment, and change the time up to {hours} hours before (at most twice per
+        booking). If you cancel in time, the refund starts automatically. You can also contact us with your booking reference (it
+        starts with &quot;DB-&quot;):
+      </p>
       <ContactLines />
 
       <h2>Refunds</h2>

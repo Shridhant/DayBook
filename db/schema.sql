@@ -107,12 +107,14 @@ CREATE TABLE public.bookings (
     created_by_user_id text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    reschedule_count smallint DEFAULT 0 NOT NULL,
     CONSTRAINT bookings_amount_due_now_paise_check CHECK ((amount_due_now_paise >= 0)),
     CONSTRAINT bookings_check CHECK ((ends_at > starts_at)),
     CONSTRAINT bookings_check1 CHECK ((amount_due_now_paise <= total_paise)),
     CONSTRAINT bookings_check2 CHECK (((status <> 'pending'::text) OR (hold_expires_at IS NOT NULL))),
     CONSTRAINT bookings_check3 CHECK (((status <> 'cancelled'::text) OR (cancelled_at IS NOT NULL))),
     CONSTRAINT bookings_code_check CHECK ((code ~ '^DB-[0-9A-Z]{4,8}$'::text)),
+    CONSTRAINT bookings_reschedule_count_check CHECK ((reschedule_count >= 0)),
     CONSTRAINT bookings_source_check CHECK ((source = ANY (ARRAY['online'::text, 'walk_in'::text, 'phone'::text]))),
     CONSTRAINT bookings_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'confirmed'::text, 'completed'::text, 'no_show'::text, 'cancelled'::text, 'expired'::text]))),
     CONSTRAINT bookings_total_paise_check CHECK ((total_paise >= 0))
@@ -203,7 +205,7 @@ CREATE TABLE public.notifications (
     dedupe_key text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     staff_leave_id uuid,
-    CONSTRAINT notifications_type_check CHECK ((type = ANY (ARRAY['booking_confirmed'::text, 'payment_review'::text, 'booking_cancelled'::text, 'leave_requested'::text, 'refund_failed'::text])))
+    CONSTRAINT notifications_type_check CHECK ((type = ANY (ARRAY['booking_confirmed'::text, 'payment_review'::text, 'booking_cancelled'::text, 'leave_requested'::text, 'refund_failed'::text, 'booking_rescheduled'::text])))
 );
 
 
@@ -1360,4 +1362,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261117120000'),
     ('20261118120000'),
     ('20261119120000'),
-    ('20261120120000');
+    ('20261120120000'),
+    ('20261121120000');

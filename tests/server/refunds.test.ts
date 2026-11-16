@@ -29,7 +29,6 @@ afterAll(async () => {
   const bookingIds = booked.map((b) => b.id);
   await cleanupBookingEvents(bookingIds);
   if (bookingIds.length) {
-    await testSql`delete from email_outbox where dedupe_key like 'customer_refund:%' and to_email = 'refundee@example.com'`;
     await testSql`delete from refunds where booking_id in ${testSql(bookingIds)}`;
     await testSql`delete from payments where booking_id in ${testSql(bookingIds)}`;
   }
@@ -110,7 +109,7 @@ describe("refundBooking", () => {
     const booking = await getAdminBooking(bookingId);
     expect(booking).toMatchObject({ paidPaise: 0, refundDue: false });
     expect(booking?.refunds).toHaveLength(1);
-    const emails = await testSql`select subject from email_outbox where dedupe_key = ${`customer_refund:${refund.id}`}`;
+    const emails = await testSql`select subject from email_outbox where dedupe_key = ${`customer_refund:${bookingId}:${refund.id}`}`;
     expect(emails[0].subject).toContain("Refund of ₹500");
   });
 
@@ -163,7 +162,7 @@ describe("refundBooking", () => {
     const event = { event: "refund.processed", payload: { refund: { entity: rzpRefund(paymentId, 50000, "processed", open.id) } } };
     expect((await webhookRoute(signedWebhook(event, `${tag}-evt-${seq}`))).status).toBe(200);
     expect((await refundsOf(bookingId))[0]).toMatchObject({ id: open.id, status: "processed" });
-    expect(await testSql`select 1 from email_outbox where dedupe_key = ${`customer_refund:${open.id}`}`).toHaveLength(1);
+    expect(await testSql`select 1 from email_outbox where dedupe_key = ${`customer_refund:${bookingId}:${open.id}`}`).toHaveLength(1);
   });
 
   it("refuses unknown bookings", async () => {
