@@ -48,7 +48,7 @@ Scale: one salon, **10–12 technicians**, a few hundred bookings a month. Custo
 | Payments | **Razorpay** (Orders API + Checkout + Webhooks) |
 | Validation | **zod** at every trust boundary (request bodies, form input, env vars) |
 | Tests | **Vitest** for domain logic; Playwright for the booking flow later |
-| Hosting | Same VPS as Postgres: Next.js (PM2 or Docker) behind **Caddy**; Cloudflare in front later |
+| Hosting | VPS: Next.js under **PM2** behind **Nginx** (the server's existing web server), Postgres on the VPS or **Supabase**. The sales demo runs at `daybook.cembers.in` with Supabase (Mumbai); see `DEPLOY.md`. *(Decided by the owner, 2026-11-16.)* |
 | Package manager | **npm** |
 
 Do not add dependencies casually. Prefer the platform and a few lines of code over a new package. Any new runtime dependency needs a one-line justification in the PR description.
@@ -70,6 +70,8 @@ npm run db:migrate     # dbmate up
 npm run db:new -- name # dbmate new <name>
 npm run db:seed        # load db/seed.sql (dev only)
 npm run db:demo        # realistic demo bookings ±14 days around today (dev only; re-runnable, customers 99999xxxxx)
+npm run db:supabase:migrate    # migrations on the hosted demo DB (SUPABASE_MIGRATION_URL); also :status, :seed, :demo
+npm run admin:create-user -- --url-env SUPABASE_APP_URL ...   # create a login in the hosted demo DB
 npm run db:test:prepare        # apply migrations to the test database
 npm run admin:create-user -- --role owner --name "Name" --email you@example.com   # prompts for a hidden password
 npm run auth:schema            # print the SQL Better Auth expects (use it to write migrations after upgrades)
@@ -258,7 +260,7 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - File-system calls on runtime paths (like `UPLOAD_DIR`) need `/*turbopackIgnore: true*/`, or the build traces the whole project into the deploy output.
 - Instagram embeds: accept only `https://www.instagram.com/(p|reel)/<id>/` URLs; validate before storing.
 - Return generic error messages to clients; log details server-side.
-- Public endpoints are rate-limited in Postgres (`server/rate-limit.ts`, `LIMITS`): hold 10/10 min per IP + 6/hour per phone, payment start 20/10 min, availability 120/min. Client IP comes from proxy headers, so **the app must only be reachable through Caddy/Cloudflare, never directly**. Add Cloudflare Turnstile if spam still appears.
+- Public endpoints are rate-limited in Postgres (`server/rate-limit.ts`, `LIMITS`): hold 10/10 min per IP + 6/hour per phone, payment start 20/10 min, availability 120/min. Client IP comes from proxy headers, so **the app must only be reachable through Nginx/Cloudflare, never directly** (it listens on 127.0.0.1:3100; Nginx overwrites `X-Real-IP`/`X-Forwarded-For` and clears `CF-Connecting-IP`). Add Cloudflare Turnstile if spam still appears.
 - Security headers live in `lib/security-headers.ts` (applied in `next.config.ts`). The CSP follows Next's "without nonces" setup on purpose: nonces would force dynamic rendering and break partial prerendering. Every external origin is allow-listed explicitly (Razorpay, Instagram, Google Maps). **Adding a third-party script, frame or API means updating the CSP and re-testing a Razorpay payment.**
 - Policy pages (`/privacy`, `/terms`, `/cancellation-policy`, `/contact`) must describe what the system actually does. Change them when behaviour changes (new data collected, new processor, refund rules).
 
@@ -304,7 +306,7 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 
 - **Read before writing.** Check existing code and this file before adding anything new.
 - Stay inside the requested task and phase. If you notice something else worth doing, mention it; don't do it.
-- Never run destructive commands against a real database (drop, truncate, mass delete), never touch production, and never commit secrets.
+- Never run destructive commands against a real database (drop, truncate, mass delete), never touch production, and never commit secrets. Tests use only `DATABASE_URL_TEST` (local); never point them at Supabase. Remote databases are only reachable through the explicit `--url-env` / `db:supabase:*` scripts.
 - Do not commit or push unless asked.
 - When unsure about a business rule (pricing, refunds, cancellations, staff permissions), **ask** rather than invent one.
 - At the end of a task, report: what changed, how you verified it (commands + results), and anything left undone.

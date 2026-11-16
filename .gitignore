@@ -45,3 +45,6 @@ next-env.d.ts
 
 # uploaded images (VPS disk; include in backups)
 /storage
+
+# Database CA certificates (downloaded per environment)
+*.crt

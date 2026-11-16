@@ -3,17 +3,23 @@
 //
 // Re-runnable: removes only what it created before (customers with phones 99999xxxxx, which no
 // real Indian number uses here) and never touches other bookings. Run `npm run db:seed` first for
-// the catalog and artists. Refuses to run in production or against a non-local host.
+// the catalog and artists. Local by default; a remote demo database must be named with --url-env.
 import postgres from "postgres";
 
-const url = process.env.DATABASE_MIGRATION_URL;
+// `--url-env NAME` targets another database (e.g. SUPABASE_MIGRATION_URL for the hosted demo);
+// anything that isn't localhost must be named explicitly like that, never by accident.
+const urlFlag = process.argv.indexOf("--url-env");
+const urlEnv = urlFlag > -1 ? process.argv[urlFlag + 1] : "DATABASE_MIGRATION_URL";
+const url = process.env[urlEnv];
 if (!url) {
-  console.error("DATABASE_MIGRATION_URL is not set (expected in .env.local).");
+  console.error(`${urlEnv} is not set (expected in .env.local).`);
   process.exit(1);
 }
 const host = new URL(url).hostname;
-if (process.env.NODE_ENV === "production" || !["localhost", "127.0.0.1", "::1"].includes(host)) {
-  console.error(`Refusing to write demo data: NODE_ENV=${process.env.NODE_ENV ?? "unset"}, host=${host}. Local only.`);
+const isLocal = ["localhost", "127.0.0.1", "::1"].includes(host);
+if (!isLocal) console.log(`→ Writing demo data to the REMOTE database at ${host} (from ${urlEnv}).`);
+if (process.env.NODE_ENV === "production" || (!isLocal && urlFlag === -1)) {
+  console.error(`Refusing to write demo data: NODE_ENV=${process.env.NODE_ENV ?? "unset"}, host=${host}. Use --url-env for a remote demo database.`);
   process.exit(1);
 }
 

@@ -4,6 +4,7 @@
 //
 // You'll be asked for the password twice (input is hidden). Roles: owner | receptionist | staff.
 // Local development only: `--password-env NAME` reads the password from that env variable instead.
+// `--url-env NAME` creates the user in another database, e.g. SUPABASE_APP_URL for the hosted demo.
 import { betterAuth } from "better-auth";
 import { parseArgs } from "node:util";
 import { Pool } from "pg";
@@ -15,6 +16,7 @@ const { values } = parseArgs({
     name: { type: "string" },
     email: { type: "string" },
     "password-env": { type: "string" },
+    "url-env": { type: "string", default: "DATABASE_URL" },
   },
 });
 
@@ -30,8 +32,9 @@ if (name.length < 2) fail('--name is required, e.g. --name "Priya Sharma"');
 const email = values.email?.trim().toLowerCase() ?? "";
 if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) fail("--email must be a valid email address");
 
-const url = process.env.DATABASE_URL;
-if (!url) fail("DATABASE_URL is not set (expected in .env.local).");
+const urlEnv = values["url-env"] ?? "DATABASE_URL";
+const url = process.env[urlEnv];
+if (!url) fail(`${urlEnv} is not set (expected in .env.local).`);
 
 /** Reads a line from the terminal without echoing it. */
 function promptHidden(question: string): Promise<string> {
