@@ -7,7 +7,7 @@ with the database on **Supabase** (Mumbai). Nothing here changes the other apps 
 |---|---|
 | App | VPS, PM2 process `daybook`, port **3100** on 127.0.0.1 only |
 | Web server / HTTPS | Existing Nginx + Let's Encrypt (certbot) |
-| Database | Supabase Postgres: one `DATABASE_URL`, the same on your laptop and the server |
+| Database | Supabase Postgres (Session pooler): one `DATABASE_URL`, the same on your laptop and the server |
 | Photos | VPS disk, `/home/ubuntu/daybook-data/uploads` |
 | Emails + reminders | Resend (SMTP), sent by a crontab job every minute |
 
@@ -19,9 +19,10 @@ Secrets live only in `.env.local` (laptop) and `.env.production.local` (server).
 
 1. Supabase → **Project Settings → Data API**: turn it off. Daybook talks to Postgres directly;
    leaving it on would let anyone with the project's public key read the tables.
-2. Supabase → **Connect → Connection string** (Direct connection). In `.env.local`:
+2. Supabase → **Connect → Connection string → Session pooler** (works on any network; the "Direct
+   connection" is IPv6-only and times out on many networks). In `.env.local`:
    ```bash
-   DATABASE_URL=postgresql://postgres:<database password>@db.<project>.supabase.co:5432/postgres?sslmode=require
+   DATABASE_URL=postgresql://postgres.tphupoyulxbuqbucmqor:<database password>@aws-1-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require
    ```
    - Remove the `[ ]` around the password. Write `@` in the password as `%40` (`:` → `%3A`, `/` → `%2F`, `#` → `%23`).
    - Forgot the password? Project Settings → Database → **Reset database password**.
@@ -82,8 +83,6 @@ NEXT_PUBLIC_DEMO_MODE=1
 
 - `SITE_URL` must be exactly the public address, or sign-in fails.
 - `NEXT_PUBLIC_*` values are baked in at build time: change one, rebuild.
-- If the build or app can't reach Supabase, the server has no IPv6: use Supabase's
-  **Session pooler** string (Connect → Connection string → Session pooler) as `DATABASE_URL`.
 
 ## 5. Nginx + HTTPS
 

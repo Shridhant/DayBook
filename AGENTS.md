@@ -277,7 +277,8 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - Dark mode toggles the `dark` class on `<html>` (never on a wrapper div), so portalled overlays inherit it.
 - **One file per salon:** name, brand colours, hero headline and contact details live in `lib/site.ts` (`brandCss()` injects the colours in the root layout). Never hardcode the salon name or brand colours elsewhere, including emails, Razorpay Checkout, the OG image and `global-error.tsx`.
 - **Demo mode** (`NEXT_PUBLIC_DEMO_MODE=1`, `lib/demo.ts`): a "demo / test payments" strip on every page and Razorpay test hints at checkout. For the sales demo only, never for a real salon. Demo bookings' payments use fake ids, so refunding them fails; demo refunds with a real test-mode booking.
-- The admin/staff dark-mode script runs once from the root layout `<head>` (`lib/admin-theme.ts`), never from a nested layout: React re-renders those on the client, where inline scripts don't run.
+- The admin/staff dark-mode and sidebar-collapse script runs once from the root layout `<head>` (`lib/admin-theme.ts`), never from a nested layout: React re-renders those on the client, where inline scripts don't run. The collapsed desktop sidebar is `<html data-sidebar-collapsed>`; style it with the `rail:` variant (only inside the desktop `[data-rail]` sidebar, never the mobile drawer).
+- Every admin/staff segment has a `loading.tsx`, so a click shows a skeleton instantly while the page's data loads. Add one to any new route group.
 - Grid/flex children that contain horizontal scrollers need `min-w-0`, or they push the page wider than the phone.
 - Accessibility: semantic HTML, labelled inputs, visible focus states, alt text on portfolio images, sufficient contrast.
 

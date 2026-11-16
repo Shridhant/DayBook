@@ -9,6 +9,8 @@ import {
   ListChecks,
   Menu as MenuIcon,
   MessageSquareQuote,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Scissors,
   Settings,
@@ -19,11 +21,12 @@ import {
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { createContext, useContext, useId, useState, type ReactNode } from "react";
+import { createContext, useContext, useId, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/dialog";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { SIDEBAR_EVENT, SIDEBAR_KEY } from "@/lib/admin-theme";
 import { PILL_SPRING } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { NotificationBell, NotificationsProvider } from "./notification-bell";
@@ -76,6 +79,30 @@ const SECTIONS: { title: string | null; items: NavItem[] }[] = [
 
 const NAV = SECTIONS.flatMap((s) => s.items);
 
+/* ---------- Collapsible desktop sidebar ---------- */
+
+// The <html data-sidebar-collapsed> attribute (set before paint by THEME_SCRIPT) drives the layout
+// through CSS; this state only adds the things CSS can't, like tooltips and the toggle's label.
+function subscribeSidebar(onChange: () => void) {
+  window.addEventListener(SIDEBAR_EVENT, onChange);
+  return () => window.removeEventListener(SIDEBAR_EVENT, onChange);
+}
+const readCollapsed = () => document.documentElement.hasAttribute("data-sidebar-collapsed");
+
+function useSidebarCollapsed() {
+  return useSyncExternalStore(subscribeSidebar, readCollapsed, () => false);
+}
+
+function setSidebarCollapsed(collapsed: boolean) {
+  document.documentElement.toggleAttribute("data-sidebar-collapsed", collapsed);
+  try {
+    localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+  } catch {
+    // Storage blocked: the choice lasts for this page view only.
+  }
+  window.dispatchEvent(new Event(SIDEBAR_EVENT));
+}
+
 const roleLabel: Record<string, string> = { owner: "Owner", receptionist: "Front desk", staff: "Artist" };
 
 function isActive(pathname: string, href: string) {
@@ -85,8 +112,9 @@ function isActive(pathname: string, href: string) {
   return best?.href === href;
 }
 
-function NavList({ role, onNavigate }: { role: string; onNavigate?: () => void }) {
+function NavList({ role, onNavigate, rail = false }: { role: string; onNavigate?: () => void; rail?: boolean }) {
   const pathname = usePathname();
+  const collapsed = useSidebarCollapsed() && rail;
   const reduce = useReducedMotion();
   const groupId = useId();
   const sections = SECTIONS.map((s) => ({ ...s, items: s.items.filter((i) => !i.ownerOnly || role === "owner") })).filter((s) => s.items.length);
@@ -94,19 +122,20 @@ function NavList({ role, onNavigate }: { role: string; onNavigate?: () => void }
     <LayoutGroup id={groupId}>
       {sections.map((section, si) => (
       <div key={section.title ?? si} className={si > 0 ? "mt-4" : undefined}>
-      {section.title && <p className="flex h-5 items-center px-2.5 text-[11px] font-medium text-muted">{section.title}</p>}
+      {section.title && (
+        <p className="flex h-5 items-center px-2.5 text-[11px] font-medium text-muted rail:hidden">{section.title}</p>
+      )}
       <ul className="space-y-0.5">
         {section.items.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
-          return (
-            <li key={href}>
+          const link = (
               <Link
                 href={href}
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative isolate flex h-8 items-center gap-2.5 rounded-lg px-3 text-[13px] outline-none transition-colors",
-                  "focus-visible:ring-3 focus-visible:ring-accent/25",
+                  "focus-visible:ring-3 focus-visible:ring-accent/25 rail:justify-center rail:px-0",
                   active ? "font-medium text-ink" : "text-ink/80 hover:text-ink",
                 )}
               >
@@ -119,8 +148,19 @@ function NavList({ role, onNavigate }: { role: string; onNavigate?: () => void }
                   />
                 )}
                 <Icon aria-hidden className="size-4 shrink-0 text-muted" />
-                <span className="truncate">{label}</span>
+                {/* Hidden visually in the rail but still the link's accessible name. */}
+                <span className="truncate rail:sr-only">{label}</span>
               </Link>
+          );
+          return (
+            <li key={href}>
+              {collapsed ? (
+                <Tooltip content={label} side="right">
+                  {link}
+                </Tooltip>
+              ) : (
+                link
+              )}
             </li>
           );
         })}
@@ -131,40 +171,68 @@ function NavList({ role, onNavigate }: { role: string; onNavigate?: () => void }
   );
 }
 
-function SidebarBody({ user, brand, onNavigate, showBell = true }: { user: ShellUser; brand: string; onNavigate?: () => void; showBell?: boolean }) {
+function SidebarBody({
+  user,
+  brand,
+  onNavigate,
+  showBell = true,
+  rail = false,
+}: {
+  user: ShellUser;
+  brand: string;
+  onNavigate?: () => void;
+  showBell?: boolean;
+  /** The desktop sidebar, which can collapse to icons; the mobile drawer never does. */
+  rail?: boolean;
+}) {
+  const collapsed = useSidebarCollapsed() && rail;
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-14 shrink-0 items-center gap-2.5 px-[14px]">
-        <span className="flex size-7 items-center justify-center rounded-lg bg-ink text-[13px] font-semibold text-surface">
+      <div className="flex h-14 shrink-0 items-center gap-2.5 px-[14px] rail:h-auto rail:flex-col rail:gap-2 rail:px-0 rail:py-3">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-ink text-[13px] font-semibold text-surface">
           {brand.slice(0, 1)}
         </span>
-        <div className="min-w-0 flex-1 leading-tight">
+        <div className="min-w-0 flex-1 leading-tight rail:hidden">
           <p className="truncate text-[13px] font-semibold">{brand}</p>
           <p className="truncate text-[11px] text-muted">Admin</p>
         </div>
         {showBell && <NotificationBell />}
       </div>
       <nav aria-label="Admin" className="flex-1 overflow-y-auto px-2 py-2">
-        <NavList role={user.role} onNavigate={onNavigate} />
+        <NavList role={user.role} onNavigate={onNavigate} rail={rail} />
         <div className="mt-4 border-t border-line pt-3">
           <a
             href="/"
             target="_blank"
             rel="noopener"
-            className="flex h-8 items-center gap-2.5 rounded-lg px-3 text-[13px] text-muted hover:bg-hover hover:text-ink"
+            aria-label="View website (opens in a new tab)"
+            className="flex h-8 items-center gap-2.5 rounded-lg px-3 text-[13px] text-muted hover:bg-hover hover:text-ink rail:justify-center rail:px-0"
           >
-            <ExternalLink aria-hidden className="size-4" /> View website
+            <ExternalLink aria-hidden className="size-4 shrink-0" /> <span className="rail:sr-only">View website</span>
           </a>
         </div>
       </nav>
-      <div className="flex items-center gap-2 border-t border-line p-3">
+      <div className="flex items-center gap-2 border-t border-line p-3 rail:flex-col rail:px-0">
         <Avatar name={user.name} size="md" />
-        <div className="min-w-0 flex-1 leading-tight">
+        <div className="min-w-0 flex-1 leading-tight rail:hidden">
           <p className="truncate text-[13px] font-medium">{user.name}</p>
           <p className="truncate text-[11px] text-muted">{roleLabel[user.role] ?? user.role}</p>
         </div>
         <ThemeToggle />
         <SignOutButton iconOnly />
+        {rail && (
+          <Tooltip content={collapsed ? "Expand sidebar" : "Collapse sidebar"} side={collapsed ? "right" : "top"}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
+              onClick={() => setSidebarCollapsed(!collapsed)}
+            >
+              {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+            </Button>
+          </Tooltip>
+        )}
       </div>
     </div>
   );
@@ -177,9 +245,14 @@ export function AdminShell({ user, brand, children }: { user: ShellUser; brand: 
     <ShellUserContext value={user}>
     <TooltipProvider>
       <NotificationsProvider>
-      <div className="min-h-dvh lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="sticky top-0 hidden h-dvh border-r border-line bg-canvas lg:block">
-          <SidebarBody user={user} brand={brand} />
+      <div
+        className={cn(
+          "min-h-dvh lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:sidebar-collapsed:grid-cols-[60px_minmax(0,1fr)]",
+          "transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
+        )}
+      >
+        <aside data-rail className="sticky top-0 hidden h-dvh overflow-hidden border-r border-line bg-canvas lg:block">
+          <SidebarBody user={user} brand={brand} rail />
         </aside>
 
         <div className="flex min-w-0 flex-col">

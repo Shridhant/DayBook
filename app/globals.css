@@ -2,6 +2,11 @@
 
 /* Dark mode is class-based (admin/staff only). See DESIGN.md §10. */
 @custom-variant dark (&:where(.dark, .dark *));
+/* Admin sidebar collapsed to an icon rail (<html data-sidebar-collapsed>, desktop only).
+   `sidebar-collapsed:` styles the page grid; `rail:` styles elements inside the desktop sidebar
+   (marked data-rail), so the mobile drawer, which reuses the same component, never collapses. */
+@custom-variant sidebar-collapsed (&:where([data-sidebar-collapsed] *));
+@custom-variant rail (&:where([data-sidebar-collapsed] [data-rail], [data-sidebar-collapsed] [data-rail] *));
 
 /* ---------- Tokens (DESIGN.md §10) ---------- */
 :root {
