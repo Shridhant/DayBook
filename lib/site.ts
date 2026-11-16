@@ -22,6 +22,8 @@ type SiteConfig = {
   };
   /** Hero headline: the `highlight` word is shown in the brand colour. */
   headline: { before: string; highlight: string; after: string };
+  /** Wide hero photo in public/ (landscape, ~1700px wide). null uses the first featured portfolio photo. */
+  heroImage: { src: string; alt: string } | null;
   legalName: string;
   email: string;
   tagline: string;
@@ -39,6 +41,7 @@ export const site: SiteConfig = {
   name: "Daybook",
   colors: { brand: "#FF00AA", accent: "#D6008F", accentDeep: "#B8007B", accentSoft: "#FFE6F5" },
   headline: { before: "Nails, done", highlight: "beautifully", after: "." },
+  heroImage: { src: "/site/banner.png", alt: "A client painting her nails on a pink bed, surrounded by beauty products" },
   /** Registered business name for the policy pages (Razorpay checks it). Falls back to `name`. */
   legalName: "",
   /** Public contact email shown on the Contact and policy pages. */

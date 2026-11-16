@@ -295,11 +295,27 @@ export function ServicesManager({
       </Dialog>
 
       <Dialog open={categoriesOpen} onOpenChange={setCategoriesOpen}>
-        <DialogContent size="sm" title="Categories" description="Shown as tabs on the website's menu.">
+        <DialogContent
+          size="sm"
+          title="Categories"
+          description="Shown as tabs on the website's menu. Categories with a photo also get a big photo tile on the home page."
+        >
           <ul className="divide-y divide-line rounded-lg border border-line">
             {categories.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
-                <span>
+              <li key={c.id} className="flex items-center gap-3 px-3 py-2">
+                <ImageUpload
+                  compact
+                  kind="services"
+                  value={c.imagePath}
+                  label={`Add a photo for ${c.name}`}
+                  onChange={(img) =>
+                    run(
+                      () => adminFetch(`/api/admin/categories/${c.id}`, { method: "PATCH", body: { imagePath: img?.path ?? null } }),
+                      img ? "Photo saved" : "Photo removed",
+                    )
+                  }
+                />
+                <span className="min-w-0 flex-1 truncate">
                   {c.name} <span className="text-xs text-muted">· {c.serviceCount}</span>
                 </span>
                 <Button

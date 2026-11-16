@@ -15,8 +15,21 @@ import type { Catalog, CatalogService } from "@/server/catalog";
 type Props = { catalog: Pick<Catalog, "categories" | "services"> };
 
 /**
- * Services panel: a photo tile per category (the first service photo in it), then the menu for
- * the chosen category as photo cards with price, duration and a Book link.
+ * Tile spans by count, so 1–5 tiles always fill the grid (4 columns from `md`, 2 on phones):
+ * the first is big (2×2); with 3 or 4 tiles the second is tall (1×2) like a magazine layout.
+ */
+function tileSpan(index: number, count: number): string {
+  if (count <= 2) return "col-span-2 row-span-2";
+  if (index === 0) return "col-span-2 row-span-2";
+  if (index === 1 && count <= 4) return "row-span-2";
+  if (index === 2 && count === 3) return "row-span-2";
+  return "";
+}
+
+/**
+ * Services panel: a photo tile for each category that has a cover photo (set in Services & prices
+ * → Categories), then the menu for the chosen category as photo cards with price, duration and a
+ * Book link.
  */
 export function ServicesSection({ catalog }: Props) {
   const [category, setCategory] = useState(catalog.categories[0]?.id ?? "");
@@ -25,14 +38,18 @@ export function ServicesSection({ catalog }: Props) {
 
   if (catalog.categories.length === 0) return null;
 
-  const tiles = catalog.categories.map((c) => {
+  const tiles = catalog.categories.flatMap((c) => {
     const list = catalog.services.filter((s) => s.categoryId === c.id);
-    return {
-      ...c,
-      count: list.length,
-      fromPaise: Math.min(...list.map((s) => s.pricePaise)),
-      imagePath: list.find((s) => s.imagePath)?.imagePath ?? null,
-    };
+    return c.imagePath
+      ? [
+          {
+            ...c,
+            imagePath: c.imagePath,
+            count: list.length,
+            fromPaise: Math.min(...list.map((s) => s.pricePaise)),
+          },
+        ]
+      : [];
   });
 
   function openCategory(id: string) {
@@ -57,15 +74,15 @@ export function ServicesSection({ catalog }: Props) {
         }
       />
 
-      <ul className="grid auto-rows-[150px] grid-cols-2 gap-2 sm:auto-rows-[190px] md:grid-cols-4 md:gap-3 lg:auto-rows-[220px]">
-        {tiles.map((t, i) => (
-          <li key={t.id} className={cn(i === 0 && "col-span-2 row-span-2")}>
-            <button
-              type="button"
-              onClick={() => openCategory(t.id)}
-              className="group relative block h-full w-full overflow-hidden rounded-[20px] bg-accent-soft text-left outline-none focus-visible:ring-3 focus-visible:ring-brand/40"
-            >
-              {t.imagePath && (
+      {tiles.length > 0 && (
+        <ul className="mb-10 grid auto-rows-[150px] grid-cols-2 gap-2 sm:auto-rows-[190px] md:mb-14 md:grid-cols-4 md:gap-3 lg:auto-rows-[220px]">
+          {tiles.map((t, i) => (
+            <li key={t.id} className={tileSpan(i, tiles.length)}>
+              <button
+                type="button"
+                onClick={() => openCategory(t.id)}
+                className="group relative block h-full w-full overflow-hidden rounded-[20px] bg-accent-soft text-left outline-none focus-visible:ring-3 focus-visible:ring-brand/40"
+              >
                 <Image
                   src={t.imagePath}
                   alt=""
@@ -73,26 +90,34 @@ export function ServicesSection({ catalog }: Props) {
                   sizes={i === 0 ? "(min-width: 768px) 50vw, 100vw" : "(min-width: 768px) 25vw, 50vw"}
                   className="object-cover transition-transform duration-500 [@media(hover:hover)]:group-hover:scale-[1.03]"
                 />
-              )}
-              <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent" />
-              <span className="absolute inset-x-0 bottom-0 p-4 md:p-5">
-                <span className={cn("block leading-tight font-medium tracking-[-0.02em] text-white", i === 0 ? "text-[clamp(1.5rem,3vw,2.25rem)]" : "text-[18px] md:text-[22px]")}>
-                  {t.name}
+                <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent" />
+                <span className="absolute inset-x-0 bottom-0 p-4 md:p-5">
+                  <span
+                    className={cn(
+                      "block leading-tight font-medium tracking-[-0.02em] text-white",
+                      i === 0 ? "text-[clamp(1.5rem,3vw,2.25rem)]" : "text-[18px] md:text-[22px]",
+                    )}
+                  >
+                    {t.name}
+                  </span>
+                  <span className="mt-1 block text-[13px] text-white/85">
+                    {t.count} service{t.count === 1 ? "" : "s"} · from {formatINR(t.fromPaise)}
+                  </span>
                 </span>
-                <span className="mt-1 block text-[13px] text-white/85">
-                  {t.count} service{t.count === 1 ? "" : "s"} · from {formatINR(t.fromPaise)}
-                </span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <div ref={menu} className="scroll-mt-24 pt-10 md:pt-14">
+      <div ref={menu} className="scroll-mt-24">
         <Tabs
           label="Service categories"
           size="public"
-          items={catalog.categories.map((c) => ({ value: c.id, label: c.name }))}
+          items={catalog.categories.map((c) => ({
+            value: c.id,
+            label: c.name,
+          }))}
           value={category}
           onValueChange={setCategory}
         />
@@ -124,7 +149,10 @@ function ServiceCard({ service: s }: { service: CatalogService }) {
               className="object-cover transition-transform duration-500 [@media(hover:hover)]:group-hover:scale-[1.03]"
             />
           ) : (
-            <span aria-hidden className="absolute inset-0 grid place-items-center text-[44px] font-medium tracking-[-0.04em] text-accent-hover/40">
+            <span
+              aria-hidden
+              className="absolute inset-0 grid place-items-center text-[44px] font-medium tracking-[-0.04em] text-accent-hover/40"
+            >
               {s.name.charAt(0)}
             </span>
           )}

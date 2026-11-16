@@ -257,6 +257,7 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - Parameterised SQL only.
 - No secrets in client bundles, logs, or git. `.env*.local` is gitignored; `.env.example` lists every variable with no values.
 - Uploaded images: check MIME type and size, re-encode/resize server-side, random filenames, never trust the original name. Implemented in `server/uploads.ts`: decoded with sharp (not trusted by extension), resized to ≤1600px, WebP, **all metadata stripped (incl. GPS)**, stored on the VPS disk under `UPLOAD_DIR` (default `./storage/uploads`, gitignored) and served by `app/uploads/[...path]/route.ts`. **Back up `UPLOAD_DIR` together with the database.**
+- Category cover photos (`service_categories.image_path`, set in Services & prices → Categories) decide which categories get a photo tile on the home page; categories without one only appear as menu tabs. The hero photo is `site.heroImage` in `lib/site.ts`. Bundled images live in `public/site/`.
 - Service photos (`services.image_path`) use upload kind `services`, which only the owner may upload (prices and services are owner-only). The seed points them at `/placeholders/*.svg`.
 - File-system calls on runtime paths (like `UPLOAD_DIR`) need `/*turbopackIgnore: true*/`, or the build traces the whole project into the deploy output.
 - Instagram embeds: accept only `https://www.instagram.com/(p|reel)/<id>/` URLs; validate before storing.

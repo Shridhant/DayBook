@@ -7,7 +7,6 @@ import { Rating } from "@/components/ui/rating";
 import { Reveal } from "@/components/ui/reveal";
 import { site } from "@/lib/site";
 import type { Catalog, CatalogStaff } from "@/server/catalog";
-import type { PortfolioItem } from "@/server/content";
 
 const MAX_FACES = 4;
 
@@ -29,7 +28,7 @@ export function Hero({
   staff,
   categories,
 }: {
-  image: PortfolioItem | undefined;
+  image: { src: string; alt: string } | undefined;
   staff: CatalogStaff[];
   categories: Catalog["categories"];
 }) {
@@ -81,7 +80,7 @@ export function Hero({
           <div className="relative aspect-[4/5] overflow-hidden rounded-[20px] bg-canvas sm:aspect-[16/10] md:rounded-[24px] lg:aspect-[2.2/1]">
             {image ? (
               <Image
-                src={image.imagePath}
+                src={image.src}
                 alt={image.alt}
                 fill
                 loading="eager"

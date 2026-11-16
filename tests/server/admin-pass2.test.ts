@@ -4,8 +4,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { sql } from "@/lib/db";
 import { addDays, istToday, weekdayOf } from "@/lib/time";
 import { createInstagramPost, deleteInstagramPost } from "@/server/admin/content-admin";
-import { serviceSchema } from "@/server/admin/schemas";
-import { createService, deleteService, listServicesAdmin, updateService } from "@/server/admin/services-admin";
+import { categoryUpdateSchema, serviceSchema } from "@/server/admin/schemas";
+import { createService, deleteService, listServicesAdmin, updateCategory, updateService } from "@/server/admin/services-admin";
 import { addClosure, deleteClosure } from "@/server/admin/settings-admin";
 import { addLeave, createStaff, setStaffShifts, updateStaffProfile } from "@/server/admin/staff-admin";
 import { createTeamMember, listTeam, resetTeamPassword, updateTeamMember } from "@/server/admin/team";
@@ -149,6 +149,18 @@ describe("services", () => {
     expect(ok("/uploads/staff/0b9b2c1e-1111-4222-8333-944445555666.webp")).toBe(false);
     expect(ok("https://evil.example/x.jpg")).toBe(false);
     expect(ok("/placeholders/../.env")).toBe(false);
+  });
+
+  it("gives categories an optional photo, removing the replaced upload", async () => {
+    const photo = await saveImage(await sharp({ create: { width: 40, height: 50, channels: 3, background: "#0cf" } }).png().toBuffer(), "services");
+    await updateCategory(ids.cat, { imagePath: photo.path });
+    expect((await listServicesAdmin()).categories.find((c) => c.id === ids.cat)?.imagePath).toBe(photo.path);
+    await updateCategory(ids.cat, { name: `${tag} Renamed` }); // leaves the photo alone
+    expect(await readUpload(photo.path)).not.toBeNull();
+    await updateCategory(ids.cat, { imagePath: "/site/manicure.jpg" });
+    expect(await readUpload(photo.path)).toBeNull();
+    expect(categoryUpdateSchema.safeParse({ imagePath: "/site/../.env.local" }).success).toBe(false);
+    expect(categoryUpdateSchema.safeParse({ imagePath: "/site/nail-art.jpg" }).success).toBe(true);
   });
 
   it("refuses to delete a service that has bookings", async () => {

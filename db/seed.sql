@@ -23,6 +23,11 @@ insert into service_categories (name, slug, sort_order) values
   ('Nail art', 'nail-art', 4),
   ('Care & removal', 'care-removal', 5);
 
+-- Category photos (public/site): these categories get a photo tile on the home page.
+update service_categories c set image_path = '/site/' || p.file
+from (values ('manicure', 'manicure.jpg'), ('pedicure', 'pedicure.jpg'), ('extensions', 'extensions.jpg'), ('nail-art', 'nail-art.jpg')) as p(slug, file)
+where c.slug = p.slug;
+
 insert into services (category_id, name, slug, description, price_paise, price_is_from, duration_min, booking_amount_override_paise, sort_order)
 select c.id, s.name, s.slug, s.description, s.price, s.is_from, s.minutes, s.override, s.sort
 from (values

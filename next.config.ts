@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
     localPatterns: [
       { pathname: "/uploads/**", search: "" },
       { pathname: "/placeholders/**", search: "" },
+      { pathname: "/site/**", search: "" },
     ],
   },
   turbopack: {

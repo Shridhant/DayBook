@@ -33,7 +33,8 @@ export type CatalogStaff = {
 };
 
 export type Catalog = {
-  categories: { id: string; slug: string; name: string }[];
+  /** `imagePath`: cover photo; categories with one are shown as photo tiles on the landing page. */
+  categories: { id: string; slug: string; name: string; imagePath: string | null }[];
   services: CatalogService[];
   staff: CatalogStaff[];
   /** Opening hours by weekday (0 = Sunday); missing = closed. Minutes since IST midnight. */
@@ -50,8 +51,8 @@ export async function getCatalog(): Promise<Catalog> {
   cacheTag(CATALOG_TAG);
 
   const [categories, services, staff, skills, hours, closures, [settings]] = await Promise.all([
-    sql<{ id: string; slug: string; name: string }[]>`
-      select id, slug, name from service_categories
+    sql<{ id: string; slug: string; name: string; imagePath: string | null }[]>`
+      select id, slug, name, image_path as "imagePath" from service_categories
       where exists (select 1 from services s where s.category_id = service_categories.id and s.active)
       order by sort_order, name`,
     sql<{ id: string; slug: string; name: string; description: string | null; category_id: string;

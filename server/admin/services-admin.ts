@@ -22,12 +22,12 @@ export type AdminService = {
   imagePath: string | null;
 };
 
-export type AdminCategory = { id: string; name: string; sortOrder: number; serviceCount: number };
+export type AdminCategory = { id: string; name: string; sortOrder: number; serviceCount: number; imagePath: string | null };
 
 export async function listServicesAdmin(): Promise<{ categories: AdminCategory[]; services: AdminService[] }> {
   const [categories, services] = await Promise.all([
-    sql<{ id: string; name: string; sort_order: number; service_count: number }[]>`
-      select c.id, c.name, c.sort_order, (select count(*)::int from services s where s.category_id = c.id) as service_count
+    sql<{ id: string; name: string; sort_order: number; service_count: number; image_path: string | null }[]>`
+      select c.id, c.name, c.sort_order, c.image_path, (select count(*)::int from services s where s.category_id = c.id) as service_count
       from service_categories c order by c.sort_order, c.name`,
     sql<
       { id: string; category_id: string; name: string; description: string | null; price_paise: number; price_is_from: boolean;
@@ -38,7 +38,7 @@ export async function listServicesAdmin(): Promise<{ categories: AdminCategory[]
       from services s order by s.sort_order, s.name`,
   ]);
   return {
-    categories: categories.map((c) => ({ id: c.id, name: c.name, sortOrder: c.sort_order, serviceCount: c.service_count })),
+    categories: categories.map((c) => ({ id: c.id, name: c.name, sortOrder: c.sort_order, serviceCount: c.service_count, imagePath: c.image_path })),
     services: services.map((s) => ({
       id: s.id,
       categoryId: s.category_id,
@@ -153,18 +153,24 @@ export async function createCategory(name: string): Promise<{ id: string }> {
   return row;
 }
 
-export async function updateCategory(id: string, input: { name?: string; sortOrder?: number }) {
-  const [row] = await sql`
-    update service_categories set name = coalesce(${input.name ?? null}, name), sort_order = coalesce(${input.sortOrder ?? null}, sort_order)
-    where id = ${id} returning id`;
-  if (!row) throw notFound("Category");
+export async function updateCategory(id: string, input: { name?: string; sortOrder?: number; imagePath?: string | null }) {
+  const [current] = await sql<{ image_path: string | null }[]>`select image_path from service_categories where id = ${id}`;
+  if (!current) throw notFound("Category");
+  await sql`
+    update service_categories set
+      name = coalesce(${input.name ?? null}, name),
+      sort_order = coalesce(${input.sortOrder ?? null}, sort_order),
+      image_path = ${input.imagePath === undefined ? sql`image_path` : input.imagePath}
+    where id = ${id}`;
+  if (input.imagePath !== undefined && current.image_path !== input.imagePath) await deleteUpload(current.image_path);
   refreshPublic("catalog", "content");
 }
 
 export async function deleteCategory(id: string) {
   const [used] = await sql`select 1 from services where category_id = ${id} limit 1`;
   if (used) throw new AdminError(409, "in_use", "Move or delete this category's services first.");
-  const [row] = await sql`delete from service_categories where id = ${id} returning id`;
+  const [row] = await sql<{ image_path: string | null }[]>`delete from service_categories where id = ${id} returning image_path`;
   if (!row) throw notFound("Category");
+  await deleteUpload(row.image_path);
   refreshPublic("catalog", "content");
 }

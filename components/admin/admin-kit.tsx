@@ -78,6 +78,7 @@ export function ImageUpload({
   onChange,
   aspect = "aspect-[4/5]",
   label = "Upload photo",
+  compact = false,
   className,
 }: {
   kind: "portfolio" | "staff" | "instagram" | "testimonials" | "services";
@@ -85,6 +86,8 @@ export function ImageUpload({
   onChange: (image: UploadedImage | null) => void;
   aspect?: string;
   label?: string;
+  /** Small square thumbnail for lists: tap to add or replace, × to remove, no Replace button. */
+  compact?: boolean;
   className?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
@@ -108,6 +111,48 @@ export function ImageUpload({
       setBusy(false);
       if (input.current) input.current.value = "";
     }
+  }
+
+  const fileInput = (
+    <input
+      ref={input}
+      type="file"
+      accept="image/jpeg,image/png,image/webp,image/avif"
+      className="sr-only"
+      tabIndex={-1}
+      onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
+    />
+  );
+
+  if (compact) {
+    return (
+      <div className={cn("relative size-12 shrink-0", className)}>
+        <button
+          type="button"
+          onClick={() => input.current?.click()}
+          disabled={busy}
+          title={error ?? (value ? "Replace photo" : label)}
+          aria-label={value ? "Replace photo" : label}
+          className={cn(
+            "relative grid size-full place-items-center overflow-hidden rounded-lg border border-dashed bg-canvas text-muted outline-none hover:bg-hover focus-visible:ring-3 focus-visible:ring-accent/25",
+            error ? "border-danger" : "border-line",
+          )}
+        >
+          {busy ? <Spinner size={16} /> : value ? <Image src={value} alt="" fill sizes="48px" className="object-cover" /> : <ImagePlus aria-hidden className="size-4" />}
+        </button>
+        {value && !busy && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            aria-label="Remove photo"
+            className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full border border-line bg-surface text-muted shadow-sm hover:text-ink"
+          >
+            <X className="size-3" />
+          </button>
+        )}
+        {fileInput}
+      </div>
+    );
   }
 
   return (
@@ -136,14 +181,7 @@ export function ImageUpload({
           Replace
         </Button>
       )}
-      <input
-        ref={input}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/avif"
-        className="sr-only"
-        tabIndex={-1}
-        onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
-      />
+      {fileInput}
       {error && <p className="mt-1 text-xs text-danger">{error}</p>}
     </div>
   );

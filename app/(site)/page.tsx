@@ -51,7 +51,8 @@ export default async function HomePage() {
     getTestimonials(),
   ]);
 
-  const heroImage = portfolio.find((p) => p.featured) ?? portfolio[0];
+  const featured = portfolio.find((p) => p.featured) ?? portfolio[0];
+  const heroImage = site.heroImage ?? (featured && { src: featured.imagePath, alt: featured.alt });
   const reels = posts.filter((p) => p.placement !== "reviews");
   const reviewReels = posts.filter((p) => p.placement === "reviews");
 

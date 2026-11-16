@@ -11,6 +11,12 @@ const text = (max: number) => z.string().trim().max(max);
 const optionalText = (max: number) => text(max).nullish().transform((v) => v || null);
 const uploadPath = (kind: string) =>
   z.string().regex(new RegExp(`^/uploads/${kind}/[0-9a-f-]{36}\\.webp$`), "Upload the image first.");
+/** A new upload of `kind`, or an image bundled in public/ (/site/…, /placeholders/…) kept as it is. */
+const imageRef = (kind: string) =>
+  z
+    .union([uploadPath(kind), z.string().regex(/^\/(placeholders|site)\/[a-z0-9-]+\.(svg|webp|jpe?g|png)$/, "Upload the image first.")])
+    .nullish()
+    .transform((v) => v ?? null);
 const time = z.string().regex(/^\d{2}:\d{2}$/, "Use HH:MM");
 const dateKey = z.string().refine(isDateKey, "Enter a valid date");
 
@@ -62,13 +68,14 @@ export const serviceSchema = z.object({
   bookingAmountOverride: optionalRupees,
   active: z.boolean(),
   staffIds: z.array(z.uuid()).max(100),
-  // A new upload, or the bundled placeholder it already has (saved unchanged).
-  imagePath: z
-    .union([uploadPath("services"), z.string().regex(/^\/placeholders\/[a-z0-9-]+\.(svg|webp|jpg)$/, "Upload the image first.")])
-    .nullish()
-    .transform((v) => v ?? null),
+  imagePath: imageRef("services"),
 });
 export const categorySchema = z.object({ name: text(40).min(2, "Enter a name") });
+export const categoryUpdateSchema = z.object({
+  name: text(40).min(2, "Enter a name").optional(),
+  // Category photos are uploaded as kind "services" (owner-only, like the rest of the menu).
+  imagePath: imageRef("services").optional(),
+});
 
 export const settingsSchema = z.object({
   bookingAmountType: z.enum(["fixed", "percent"]),
