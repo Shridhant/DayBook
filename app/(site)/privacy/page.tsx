@@ -32,7 +32,10 @@ export default function PrivacyPage() {
 
       <h2>Why we use it</h2>
       <ul>
-        <li>To manage your appointment and send your confirmation.</li>
+        <li>
+          To manage your appointment and, if you gave an email, send your confirmation, a reminder about a day before, and updates
+          when you change or cancel it.
+        </li>
         <li>To contact you about your booking (for example, if we need to reschedule).</li>
         <li>To process payments and refunds, and keep the records the law requires.</li>
         <li>To protect the booking system from spam and misuse.</li>
@@ -42,7 +45,7 @@ export default function PrivacyPage() {
       <h2>Who we share it with</h2>
       <ul>
         <li><strong>Razorpay</strong>, our payment partner, to process payments and refunds.</li>
-        <li><strong>Our email provider</strong>, to send your booking confirmation.</li>
+        <li><strong>Our email provider</strong>, to send your booking emails (confirmation, reminder, changes and refunds).</li>
         <li><strong>Our hosting provider</strong>, which stores the website and its data on servers in India.</li>
       </ul>
       <p>

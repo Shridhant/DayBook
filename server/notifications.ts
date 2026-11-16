@@ -4,10 +4,12 @@ import { env } from "@/lib/env";
 import { buildIcs } from "@/lib/ics";
 import { formatINR } from "@/lib/money";
 import { site } from "@/lib/site";
-import { formatDate, formatInstantTime, formatLeaveRange, toIst } from "@/lib/time";
+import { customerChangeTerms } from "@/lib/customer-changes";
+import { addDays, formatDate, formatInstantTime, formatLeaveRange, istToday, toIst } from "@/lib/time";
 import {
   customerConfirmationEmail,
   customerRefundEmail,
+  customerReminderEmail,
   customerRescheduledEmail,
   ownerBookingConfirmedEmail,
   ownerPaymentReviewEmail,
@@ -231,4 +233,38 @@ export async function onBookingRescheduled(db: Db, bookingId: string, previous: 
       ics: bookingIcs(b, sequence),
     });
   }
+}
+
+/** Outbox key for a booking's reminder. Includes the start time, so a moved booking is reminded again. */
+export function reminderKey(bookingId: string, startsAt: Date): string {
+  return `reminder:${bookingId}:${Math.floor(startsAt.getTime() / 1000)}`;
+}
+
+/** Queues the "see you tomorrow" email for a booking (server/reminders.ts decides which are due). */
+export async function onReminderDue(db: Db, bookingId: string, now: Date): Promise<void> {
+  const b = await loadSummary(db, bookingId);
+  if (!b?.customerEmail) return;
+  const [settings] = await db<{ cancel_window_hours: number }[]>`select cancel_window_hours from settings`;
+
+  const day = toIst(b.startsAt).date;
+  const dayLabel = day === istToday(now) ? "today" : day === addDays(istToday(now), 1) ? "tomorrow" : `on ${formatDate(day)}`;
+  // Tell them what they can still do *now*, following the cancellation policy.
+  const terms = customerChangeTerms(b.startsAt, now, settings.cancel_window_hours);
+  const changeNote = terms.free
+    ? `Need a different time? You can change or cancel for free until ${formatDate(toIst(terms.freeUntil).date)}, ${formatInstantTime(terms.freeUntil)}.`
+    : b.paidPaise > 0
+      ? `Can't make it? Please cancel with the link so someone else can have the slot. The booking amount isn't refundable this close to the appointment.`
+      : "Can't make it? Please cancel with the link so someone else can have the slot.";
+
+  await queueEmail(db, {
+    to: b.customerEmail,
+    dedupeKey: reminderKey(b.id, b.startsAt),
+    content: customerReminderEmail(b, site.name, {
+      address: site.address,
+      mapsUrl: site.mapsUrl,
+      manageUrl: manageUrl(b.code, b.id),
+      dayLabel,
+      changeNote,
+    }),
+  });
 }

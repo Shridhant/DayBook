@@ -158,3 +158,29 @@ export function customerRescheduledEmail(b: BookingSummary, salon: string, extra
   );
   return { subject: `New time: ${formatDate(toIst(b.startsAt).date)} at ${formatInstantTime(b.startsAt)} (${b.code})`, html, text };
 }
+
+/** To the customer: their appointment is coming up (sent about a day before). */
+export function customerReminderEmail(
+  b: BookingSummary,
+  salon: string,
+  extra: { address: string; mapsUrl: string; manageUrl: string; dayLabel: string; changeNote: string },
+): EmailContent {
+  const detail: [string, string][] = [
+    ["Booking", b.code],
+    ["When", when(b)],
+    ["Artist", b.staffName],
+    ["Services", b.items.map((i) => i.name).join(", ")],
+    ["Pay at the studio", formatINR(Math.max(0, b.totalPaise - b.paidPaise))],
+    ...(extra.address ? ([["Where", extra.address]] as [string, string][]) : []),
+    ...(extra.mapsUrl ? ([["Directions", extra.mapsUrl]] as [string, string][]) : []),
+  ];
+  const { html, text } = layout(
+    salon,
+    `See you ${extra.dayLabel}, ${b.customerName.split(" ")[0]}!`,
+    `A quick reminder of your appointment ${extra.dayLabel} at ${formatInstantTime(b.startsAt)}.`,
+    detail,
+    extra.changeNote,
+    { label: "View or change booking", url: extra.manageUrl },
+  );
+  return { subject: `Reminder: ${extra.dayLabel} at ${formatInstantTime(b.startsAt)} (${b.code})`, html, text };
+}
