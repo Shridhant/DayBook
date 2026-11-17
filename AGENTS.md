@@ -69,7 +69,7 @@ npm test               # vitest
 npm run db:migrate     # dbmate up (DATABASE_URL)
 npm run db:new -- name # dbmate new <name>
 npm run db:seed        # load db/seed.sql (wipes catalog/bookings, keeps logins; staff logins need re-linking; a non-local DB needs `-- --yes`)
-npm run db:demo        # realistic demo bookings ±14 days around today (dev only; re-runnable, customers 99999xxxxx)
+npm run db:demo        # realistic demo bookings: ~6 months back (for Reports) + 2 weeks ahead (dev only; re-runnable, customers 99999xxxxx)
 npm run db:test:prepare        # apply migrations to the test database
 npm run admin:create-user -- --role owner --name "Name" --email you@example.com   # prompts for a hidden password
 npm run auth:schema            # print the SQL Better Auth expects (use it to write migrations after upgrades)
@@ -223,6 +223,13 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - Addresses on reserved test domains (`example.com`, `.test`, `.invalid`…, `lib/email-address.ts`) are never queued or sent: demo customers use them, and bounces hurt the sender domain. Tests use `@mail.daybook-tests.in`.
 - **Reminders** (`server/reminders.ts`, phase 2; owner chose "email, 24h before"): the per-minute cron job queues one email for each confirmed booking starting within `REMINDER_HOURS` (24), skipping bookings made less than 24h ahead (they just got their confirmation) and anything under 2h away. The outbox key `reminder:<booking id>:<start epoch>` makes it send once per start time, so a moved booking is reminded about its new time. The email says what the customer can still change *at that moment*, per the cancellation policy. Email only for now; WhatsApp/SMS would need a paid provider.
 
+### Reports (`/admin/reports`, owner only; phase 3)
+- Queries live in `server/reports.ts`, pure range/bucket/comparison rules in `lib/reports.ts` (tested). A booking counts in the period its appointment **starts** in (IST).
+- **Revenue = service value of bookings marked done** (price snapshots); "still to come" = confirmed and not yet started. Money taken at the counter isn't recorded, so the page says so and flags past bookings nobody marked. "Collected online" = captured booking amounts minus refunds. With a category filter, values count only that category's services.
+- Utilisation = booked minutes ÷ shift minutes (minus closures and approved leave). Rates compare in percentage points.
+- A period still in progress compares only its days so far with the same days of the previous period (`comparisonRanges`), so a half-finished month never looks like a drop.
+- Chart colours are `--chart-1..3` in `globals.css` (validated for colour blindness, light and dark); every chart has a table view or printed values.
+
 ### Customers
 - Phone is the identity. Normalise to 10 digits (strip `+91`, `91`, leading `0`), must match `^[6-9]\d{9}$`.
 - **Manage-booking link** (`/booking/<code>?k=<key>`, phase 2): customers never log in, so each online booking has a private link. The key is an HMAC of the booking id (`server/manage-link.ts`, keyed by `BETTER_AUTH_SECRET`): nothing is stored, any email can rebuild it, and a wrong key looks like an unknown booking. It's in the confirmation email (button + .ics description) and on the confirmation screen.
@@ -237,7 +244,7 @@ Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 - Roles: `owner` (everything), `receptionist` (bookings, calendar, walk-ins; no settings, no refunds), `staff` (own bookings only).
 - **Every admin/staff route handler checks the session and role on the server.** `proxy.ts` (formerly middleware) is only a convenience redirect, not the security boundary.
 - Staff queries are always scoped `where staff_id = <session staff_id>`. Customer phone numbers are hidden from staff unless a setting allows it.
-- Only `owner` can refund, change prices, change booking-amount settings, or manage users.
+- Only `owner` can refund, change prices, change booking-amount settings, manage users, or see **Reports**.
 - **Role split (decided by the owner, 2026-11-16):** `owner` = everything. `receptionist` (front desk) = bookings, walk-ins, artists' **leave**, **closures**, and website content (**portfolio, Instagram, reviews**); artist profiles/skills/shifts are read-only for them. Owner-only: services and prices, settings and opening hours, artist profiles/skills/shifts, team logins. Constants: `OWNER_ONLY` / `FRONT_DESK` in `server/admin/http.ts`.
 - Every admin API route is wrapped in `adminRoute({ roles, body }, handler)` (`server/admin/http.ts`): it checks the role, zod-parses the body, validates `[id]`, and maps `AdminError` to a clean JSON error. Admin writes that affect the public site call `refreshPublic("catalog" | "content")`.
 - Changes that would strand existing bookings (shifts, leave, closures) return `{ saved: false, clashes }` first; the UI shows them and resends with `force: true`.

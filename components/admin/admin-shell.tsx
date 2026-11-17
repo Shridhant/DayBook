@@ -3,6 +3,7 @@
 import {
   CalendarDays,
   CalendarOff,
+  ChartColumn,
   ExternalLink,
   Images,
   KeyRound,
@@ -55,6 +56,7 @@ const SECTIONS: { title: string | null; items: NavItem[] }[] = [
       { href: "/admin/today", label: "Calendar", icon: CalendarDays },
       { href: "/admin/bookings", label: "Bookings", icon: ListChecks },
       { href: "/admin/bookings/new", label: "New booking", icon: Plus },
+      { href: "/admin/reports", label: "Reports", icon: ChartColumn, ownerOnly: true },
     ],
   },
   {

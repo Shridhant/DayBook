@@ -26,6 +26,11 @@
   --warning: #b45309;
   --menu: rgb(253 253 252 / 0.82);
   --shadow-layer: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -6px rgb(0 0 0 / 0.12);
+  /* Report charts: categorical slots in this fixed order, validated together for colour blindness
+     (dataviz validator, light and dark). Slot 1 follows the salon accent. */
+  --chart-1: var(--accent);
+  --chart-2: #2a78d6;
+  --chart-3: #1baf7a;
 }
 
 .dark {
@@ -45,6 +50,9 @@
   --warning: #fbbf24;
   --menu: rgb(21 26 36 / 0.78);
   --shadow-layer: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -8px rgb(0 0 0 / 0.5);
+  --chart-1: var(--accent-hover);
+  --chart-2: #3987e5;
+  --chart-3: #199e70;
 }
 
 @theme inline {
@@ -65,6 +73,9 @@
   --color-danger: var(--danger);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
 }
 
 /* ---------- Base ---------- */
