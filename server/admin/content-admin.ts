@@ -81,6 +81,7 @@ export type AdminInstagramPost = {
   url: string;
   kind: "reel" | "post";
   thumbnailPath: string | null;
+  videoPath: string | null;
   caption: string | null;
   placement: "hero" | "portfolio" | "reviews";
   active: boolean;
@@ -88,11 +89,11 @@ export type AdminInstagramPost = {
 
 export async function listInstagramAdmin(): Promise<AdminInstagramPost[]> {
   return sql<AdminInstagramPost[]>`
-    select id, url, kind, thumbnail_path as "thumbnailPath", caption, placement, active
+    select id, url, kind, thumbnail_path as "thumbnailPath", video_path as "videoPath", caption, placement, active
     from instagram_posts order by sort_order, created_at desc`;
 }
 
-export type InstagramInput = { url: string; caption?: string | null; placement: AdminInstagramPost["placement"]; thumbnailPath?: string | null; active: boolean };
+export type InstagramInput = { url: string; caption?: string | null; placement: AdminInstagramPost["placement"]; thumbnailPath?: string | null; videoPath?: string | null; active: boolean };
 
 function parseUrl(url: string) {
   const parsed = parseInstagramUrl(url);
@@ -103,8 +104,8 @@ function parseUrl(url: string) {
 export async function createInstagramPost(input: InstagramInput) {
   const parsed = parseUrl(input.url);
   const [row] = await sql<{ id: string }[]>`
-    insert into instagram_posts (url, kind, thumbnail_path, caption, placement, active, sort_order)
-    values (${parsed.url}, ${parsed.kind}, ${input.thumbnailPath || null}, ${input.caption || null}, ${input.placement}, ${input.active},
+    insert into instagram_posts (url, kind, thumbnail_path, video_path, caption, placement, active, sort_order)
+    values (${parsed.url}, ${parsed.kind}, ${input.thumbnailPath || null}, ${input.videoPath || null}, ${input.caption || null}, ${input.placement}, ${input.active},
             (select coalesce(min(sort_order), 1) - 1 from instagram_posts))
     returning id`;
   refreshPublic("content");
@@ -113,20 +114,24 @@ export async function createInstagramPost(input: InstagramInput) {
 
 export async function updateInstagramPost(id: string, input: InstagramInput) {
   const parsed = parseUrl(input.url);
-  const [current] = await sql<{ thumbnail_path: string | null }[]>`select thumbnail_path from instagram_posts where id = ${id}`;
+  const [current] = await sql<{ thumbnail_path: string | null; video_path: string | null }[]>`
+    select thumbnail_path, video_path from instagram_posts where id = ${id}`;
   if (!current) throw notFound("Post");
   await sql`
     update instagram_posts set url = ${parsed.url}, kind = ${parsed.kind}, thumbnail_path = ${input.thumbnailPath || null},
-      caption = ${input.caption || null}, placement = ${input.placement}, active = ${input.active}
+      video_path = ${input.videoPath || null}, caption = ${input.caption || null}, placement = ${input.placement}, active = ${input.active}
     where id = ${id}`;
   if (current.thumbnail_path !== (input.thumbnailPath || null)) await deleteUpload(current.thumbnail_path);
+  if (current.video_path !== (input.videoPath || null)) await deleteUpload(current.video_path);
   refreshPublic("content");
 }
 
 export async function deleteInstagramPost(id: string) {
-  const [row] = await sql<{ thumbnail_path: string | null }[]>`delete from instagram_posts where id = ${id} returning thumbnail_path`;
+  const [row] = await sql<{ thumbnail_path: string | null; video_path: string | null }[]>`
+    delete from instagram_posts where id = ${id} returning thumbnail_path, video_path`;
   if (!row) throw notFound("Post");
   await deleteUpload(row.thumbnail_path);
+  await deleteUpload(row.video_path);
   refreshPublic("content");
 }
 

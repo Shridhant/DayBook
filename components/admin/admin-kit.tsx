@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ImagePlus, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Film, ImagePlus, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ReactNode } from "react";
@@ -182,6 +182,66 @@ export function ImageUpload({
         </Button>
       )}
       {fileInput}
+      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+    </div>
+  );
+}
+
+/* ---------- Video upload (Instagram reel clips) ---------- */
+
+/** A short MP4 for an Instagram card: small muted preview, upload/replace and remove. */
+export function VideoUpload({ value, onChange }: { value: string | null; onChange: (path: string | null) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function upload(file: File) {
+    setBusy(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      form.set("kind", "instagram");
+      form.set("media", "video");
+      const response = await fetch("/api/admin/uploads", { method: "POST", body: form });
+      const data = (await response.json().catch(() => null)) as { path?: string; message?: string } | null;
+      if (!response.ok || !data?.path) throw new Error(data?.message ?? "Upload failed.");
+      onChange(data.path);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed.");
+    } finally {
+      setBusy(false);
+      if (input.current) input.current.value = "";
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <div className="relative grid aspect-[9/16] w-12 shrink-0 place-items-center overflow-hidden rounded-lg border border-dashed border-line bg-canvas text-muted">
+          {value ? (
+            <video src={`${value}#t=0.1`} muted playsInline preload="metadata" className="absolute inset-0 size-full object-cover" />
+          ) : (
+            <Film aria-hidden className="size-4" />
+          )}
+        </div>
+        <Button size="sm" onClick={() => input.current?.click()} loading={busy}>
+          {value ? "Replace clip" : "Upload clip"}
+        </Button>
+        {value && !busy && (
+          <Button size="sm" variant="ghost" onClick={() => onChange(null)}>
+            Remove
+          </Button>
+        )}
+      </div>
+      <input
+        ref={input}
+        type="file"
+        accept="video/mp4,video/webm"
+        className="sr-only"
+        tabIndex={-1}
+        onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
+      />
       {error && <p className="mt-1 text-xs text-danger">{error}</p>}
     </div>
   );

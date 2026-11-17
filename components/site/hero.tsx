@@ -77,7 +77,7 @@ export function Hero({
             </Reveal>
           </div>
 
-          <div className="relative aspect-[4/5] overflow-hidden rounded-[20px] bg-canvas sm:aspect-[16/10] md:rounded-[24px] lg:aspect-[2.2/1]">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-[20px] bg-canvas sm:aspect-[16/10] md:rounded-[24px] lg:aspect-[2.2/1]">
             {image ? (
               <Image
                 src={image.src}
@@ -86,14 +86,14 @@ export function Hero({
                 loading="eager"
                 fetchPriority="high"
                 sizes="(min-width: 1280px) 1240px, 100vw"
-                className="object-cover object-[50%_60%]"
+                className="object-cover object-[42%_60%]"
               />
             ) : (
               <div aria-hidden className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,var(--accent-soft),var(--subtle)_70%)]" />
             )}
             <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
 
-            <div className="absolute inset-x-0 bottom-0 flex flex-col gap-5 p-5 md:flex-row md:items-end md:justify-between md:p-8">
+            <div className="absolute inset-x-0 bottom-0 flex flex-col gap-5 p-4 sm:p-5 md:flex-row md:items-end md:justify-between md:p-8">
               <div>
                 <p className="max-w-[14ch] text-[clamp(1.75rem,5vw,3.25rem)] leading-[1.05] font-medium tracking-[-0.03em] text-white">
                   Here for your nails.
@@ -115,7 +115,7 @@ export function Hero({
                 )}
               </div>
               {categories.length > 0 && (
-                <ul className="flex max-w-[420px] flex-wrap gap-1.5 md:justify-end" aria-label="Services">
+                <ul className="hidden max-w-[420px] flex-wrap gap-1.5 sm:flex md:justify-end" aria-label="Services">
                   {categories.map((c) => (
                     <li key={c.id}>
                       <a

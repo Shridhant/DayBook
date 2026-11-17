@@ -9,7 +9,7 @@ import { createService, deleteService, listServicesAdmin, updateCategory, update
 import { addClosure, deleteClosure } from "@/server/admin/settings-admin";
 import { addLeave, createStaff, setStaffShifts, updateStaffProfile } from "@/server/admin/staff-admin";
 import { createTeamMember, listTeam, resetTeamPassword, updateTeamMember } from "@/server/admin/team";
-import { deleteUpload, readUpload, saveImage } from "@/server/uploads";
+import { deleteUpload, readUpload, saveImage, saveVideo, uploadContentType } from "@/server/uploads";
 import { testSql } from "../helpers/test-db";
 
 /** Admin pass 2 against the TEST database (today+8 / +9 so other test files never collide). */
@@ -243,5 +243,23 @@ describe("uploads", () => {
     await expect(saveImage(Buffer.from("<script>alert(1)</script>"), "portfolio")).rejects.toThrow(/doesn't look like an image/);
     expect(await readUpload("/uploads/portfolio/../../../etc/passwd")).toBeNull();
     expect(await readUpload("/placeholders/01-cherry-gloss.svg")).toBeNull();
+  });
+
+  it("stores MP4/WebM reel clips by their bytes and rejects QuickTime and other files", async () => {
+    const box = (brand: string) => Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from(`ftyp${brand}`, "latin1"), Buffer.alloc(32)]);
+    const mp4 = await saveVideo(box("isom"));
+    expect(mp4.path).toMatch(/^\/uploads\/instagram\/[0-9a-f-]{36}\.mp4$/);
+    expect(uploadContentType(mp4.path)).toBe("video/mp4");
+    expect(await readUpload(mp4.path)).not.toBeNull();
+    await deleteUpload(mp4.path);
+    expect(await readUpload(mp4.path)).toBeNull();
+
+    const webm = await saveVideo(Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(32)]));
+    expect(webm.path).toMatch(/\.webm$/);
+    await deleteUpload(webm.path);
+
+    await expect(saveVideo(box("qt  "))).rejects.toThrow(/MP4/);
+    await expect(saveVideo(Buffer.from("not a video at all"))).rejects.toThrow(/MP4/);
+    await expect(saveVideo(Buffer.alloc(0))).rejects.toThrow(/empty/);
   });
 });

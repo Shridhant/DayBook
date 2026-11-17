@@ -47,7 +47,7 @@ export function VisitSection({ openingHours }: { openingHours: Catalog["openingH
             </p>
           )}
 
-          <table className={cn("w-full max-w-md text-[15px]", site.address && "mt-6")}>
+          <table className={cn("w-full text-[15px]", site.address && "mt-6")}>
             <caption className="sr-only">Opening hours (India time)</caption>
             <tbody>
               {WEEK.map(({ day, label }) => {

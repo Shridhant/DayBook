@@ -113,6 +113,11 @@ export const instagramSchema = z.object({
   caption: optionalText(120),
   placement: z.enum(["hero", "portfolio", "reviews"]),
   thumbnailPath: uploadPath("instagram").nullish().transform((v) => v ?? null),
+  videoPath: z
+    .string()
+    .regex(/^\/uploads\/instagram\/[0-9a-f-]{36}\.(mp4|webm)$/, "Upload the video first.")
+    .nullish()
+    .transform((v) => v ?? null),
   active: z.boolean(),
 });
 

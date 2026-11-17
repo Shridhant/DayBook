@@ -13,7 +13,7 @@ import { Checkbox, Switch } from "@/components/ui/toggle";
 import { parseInstagramUrl } from "@/lib/instagram";
 import type { AdminInstagramPost, AdminPortfolioItem, AdminTestimonial } from "@/server/admin/content-admin";
 import type { AdminCategory } from "@/server/admin/services-admin";
-import { adminFetch, ImageUpload, RowActions, useMutation, type UploadedImage } from "./admin-kit";
+import { adminFetch, ImageUpload, RowActions, useMutation, VideoUpload, type UploadedImage } from "./admin-kit";
 
 /** Shared edit dialog shell with Cancel / Save. */
 function EditDialog({
@@ -195,7 +195,14 @@ export function PortfolioManager({ items, categories }: { items: AdminPortfolioI
 
 /* ---------- Instagram ---------- */
 
-type InstagramForm = { url: string; caption: string; placement: AdminInstagramPost["placement"]; thumbnailPath: string | null; active: boolean };
+type InstagramForm = {
+  url: string;
+  caption: string;
+  placement: AdminInstagramPost["placement"];
+  thumbnailPath: string | null;
+  videoPath: string | null;
+  active: boolean;
+};
 const PLACEMENT = { hero: "Hero", portfolio: "Instagram section", reviews: "Reviews section" } as const;
 
 export function InstagramManager({ posts }: { posts: AdminInstagramPost[] }) {
@@ -227,7 +234,7 @@ export function InstagramManager({ posts }: { posts: AdminInstagramPost[] }) {
           variant="primary"
           onClick={() => {
             setError(null);
-            setEditing({ id: null, form: { url: "", caption: "", placement: "portfolio", thumbnailPath: null, active: true } });
+            setEditing({ id: null, form: { url: "", caption: "", placement: "portfolio", thumbnailPath: null, videoPath: null, active: true } });
           }}
         >
           <Plus /> Add reel or post
@@ -242,7 +249,11 @@ export function InstagramManager({ posts }: { posts: AdminInstagramPost[] }) {
           {posts.map((p) => (
             <div key={p.id} className="flex items-center gap-3 px-3 py-2.5">
               <div className="relative aspect-[9/16] w-11 shrink-0 overflow-hidden rounded-md bg-canvas">
-                {p.thumbnailPath && <Image src={p.thumbnailPath} alt="" fill sizes="44px" className="object-cover" />}
+                {p.thumbnailPath ? (
+                  <Image src={p.thumbnailPath} alt="" fill sizes="44px" className="object-cover" />
+                ) : (
+                  p.videoPath && <video src={`${p.videoPath}#t=0.1`} muted playsInline preload="metadata" className="absolute inset-0 size-full object-cover" />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{p.caption ?? (p.kind === "reel" ? "Reel" : "Post")}</p>
@@ -251,11 +262,12 @@ export function InstagramManager({ posts }: { posts: AdminInstagramPost[] }) {
                 </a>
               </div>
               <Chip>{PLACEMENT[p.placement]}</Chip>
+              {p.videoPath && <Chip>Clip</Chip>}
               {!p.active && <Chip>Hidden</Chip>}
               <RowActions
                 onEdit={() => {
                   setError(null);
-                  setEditing({ id: p.id, form: { url: p.url, caption: p.caption ?? "", placement: p.placement, thumbnailPath: p.thumbnailPath, active: p.active } });
+                  setEditing({ id: p.id, form: { url: p.url, caption: p.caption ?? "", placement: p.placement, thumbnailPath: p.thumbnailPath, videoPath: p.videoPath, active: p.active } });
                 }}
                 onMove={(d) => run(() => move("/api/admin/instagram", p.id, d))}
                 onDelete={async () => {
@@ -280,7 +292,7 @@ export function InstagramManager({ posts }: { posts: AdminInstagramPost[] }) {
       >
         {editing && (
           <div className="grid gap-4 sm:grid-cols-[120px_minmax(0,1fr)]">
-            <ImageUpload kind="instagram" aspect="aspect-[9/16]" label="Thumbnail" value={editing.form.thumbnailPath} onChange={(img) => patch({ thumbnailPath: img?.path ?? null })} />
+            <ImageUpload kind="instagram" aspect="aspect-[9/16]" label="Thumbnail (optional)" value={editing.form.thumbnailPath} onChange={(img) => patch({ thumbnailPath: img?.path ?? null })} />
             <div className="space-y-3">
               <Field
                 label="Instagram link"
@@ -288,6 +300,12 @@ export function InstagramManager({ posts }: { posts: AdminInstagramPost[] }) {
                 hint={parsed ? `Looks good: ${parsed.kind}` : "In Instagram: ••• → Copy link"}
               >
                 <Input value={editing.form.url} onChange={(e) => patch({ url: e.target.value })} placeholder="https://www.instagram.com/reel/…" />
+              </Field>
+              <Field
+                label="Clip (optional)"
+                hint="An MP4 up to 30 MB, e.g. the reel saved from Instagram. It plays silently when someone hovers over the card on a computer."
+              >
+                <VideoUpload value={editing.form.videoPath} onChange={(videoPath) => patch({ videoPath })} />
               </Field>
               <Field label="Caption (optional)">
                 <Input value={editing.form.caption} maxLength={120} onChange={(e) => patch({ caption: e.target.value })} />

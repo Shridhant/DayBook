@@ -25,6 +25,8 @@ export type InstagramPost = {
   url: string;
   kind: "reel" | "post";
   thumbnailPath: string | null;
+  /** Salon-uploaded clip: the card's preview, played on desktop hover. */
+  videoPath: string | null;
   caption: string | null;
   placement: "hero" | "portfolio" | "reviews";
 };
@@ -62,13 +64,14 @@ export async function getInstagramPosts(): Promise<InstagramPost[]> {
   cacheLife("hours");
   cacheTag(CONTENT_TAG);
   const rows = await sql<
-    { id: string; url: string; kind: "reel" | "post"; thumbnail_path: string | null; caption: string | null; placement: InstagramPost["placement"] }[]
-  >`select id, url, kind, thumbnail_path, caption, placement from instagram_posts where active order by sort_order, created_at desc`;
+    { id: string; url: string; kind: "reel" | "post"; thumbnail_path: string | null; video_path: string | null; caption: string | null; placement: InstagramPost["placement"] }[]
+  >`select id, url, kind, thumbnail_path, video_path, caption, placement from instagram_posts where active order by sort_order, created_at desc`;
   return rows.map((r) => ({
     id: r.id,
     url: r.url,
     kind: r.kind,
     thumbnailPath: r.thumbnail_path,
+    videoPath: r.video_path,
     caption: r.caption,
     placement: r.placement,
   }));
