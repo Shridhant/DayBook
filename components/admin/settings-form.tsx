@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, Input, NativeSelect } from "@/components/ui/input";
-import { OptionCard } from "@/components/ui/choice";
+import { OptionCard, SlotChip } from "@/components/ui/choice";
 import { Switch } from "@/components/ui/toggle";
 import { MAX_CUSTOMER_RESCHEDULES } from "@/lib/customer-changes";
 import { formatINR, paiseToRupeesInput, rupeesToPaise } from "@/lib/money";
@@ -17,7 +17,8 @@ import type { AdminSettings } from "@/server/admin/settings-admin";
 import { adminFetch, useMutation } from "./admin-kit";
 
 type Hours = AdminSettings["hours"];
-type Panel = "amount" | "cancel" | "booking" | "hours";
+type CalendarRule = "slotIntervalMin" | "bookingWindowDays" | "leadTimeMin" | "holdMinutes";
+type Panel = "amount" | "cancel" | "hours" | CalendarRule;
 
 const DAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -52,10 +53,9 @@ export function SettingsForm({ settings }: { settings: AdminSettings }) {
       <Section icon={CalendarClock} title="Booking calendar" className="overflow-hidden">
         <Rows>
           <Row label="Opening hours" hint="Shown on the website" value={<HoursSummary hours={settings.hours} />} onClick={() => open("hours")} />
-          <Row label="Time slots" value={`Every ${settings.slotIntervalMin} min`} onClick={() => open("booking")} />
-          <Row label="Book ahead" value={`Up to ${plural(settings.bookingWindowDays, "day")}`} onClick={() => open("booking")} />
-          <Row label="Online notice" value={noticeLabel(settings.leadTimeMin)} onClick={() => open("booking")} />
-          <Row label="Payment hold" hint="Slot kept while the customer pays" value={`${settings.holdMinutes} min`} onClick={() => open("booking")} />
+          {CALENDAR_RULES.map((rule) => (
+            <Row key={rule.key} label={rule.title} hint={rule.hint} value={rule.summary(settings[rule.key])} onClick={() => open(rule.key)} />
+          ))}
         </Rows>
       </Section>
 
@@ -71,9 +71,11 @@ export function SettingsForm({ settings }: { settings: AdminSettings }) {
       <Dialog {...dialog("cancel")}>
         <CancelDialog key={session} settings={settings} onDone={close} />
       </Dialog>
-      <Dialog {...dialog("booking")}>
-        <BookingDialog key={session} settings={settings} onDone={close} />
-      </Dialog>
+      {CALENDAR_RULES.map((rule) => (
+        <Dialog key={rule.key} {...dialog(rule.key)}>
+          <RuleDialog key={session} rule={rule} settings={settings} onDone={close} />
+        </Dialog>
+      ))}
       <Dialog {...dialog("hours")}>
         <HoursDialog key={session} hours={settings.hours} onDone={close} />
       </Dialog>
@@ -295,62 +297,95 @@ function CancelDialog({ settings, onDone }: { settings: AdminSettings; onDone: (
   );
 }
 
-function BookingDialog({ settings, onDone }: { settings: AdminSettings; onDone: () => void }) {
-  const { run, busy } = useMutation();
-  const [slot, setSlot] = useState(settings.slotIntervalMin);
-  const [days, setDays] = useState(String(settings.bookingWindowDays));
-  const [lead, setLead] = useState(settings.leadTimeMin);
-  const [hold, setHold] = useState(settings.holdMinutes);
+/* The four calendar rules: one setting per row and per dialog, picked from presets. */
 
-  const daysNum = Number(days);
-  const daysOk = Number.isInteger(daysNum) && daysNum >= 1 && daysNum <= 180;
-  const changed = slot !== settings.slotIntervalMin || daysNum !== settings.bookingWindowDays || lead !== settings.leadTimeMin || hold !== settings.holdMinutes;
+type RuleSpec = {
+  key: CalendarRule;
+  title: string;
+  hint: string;
+  description: string;
+  presets: number[];
+  option: (n: number) => string;
+  summary: (n: number) => string;
+  /** What the chosen value means for a customer, in one concrete sentence. */
+  example: (n: number, settings: AdminSettings) => string;
+  /** How the rule treats front-desk bookings (server/availability-query.ts `forAdmin`). */
+  note: string;
+};
+
+const CALENDAR_RULES: RuleSpec[] = [
+  {
+    key: "slotIntervalMin",
+    title: "Time slots",
+    hint: "How often start times are offered",
+    description: "How far apart the start times customers can pick are.",
+    presets: [5, 10, 15, 20, 30, 60],
+    option: (n) => `${n} min`,
+    summary: (n) => `Every ${n} min`,
+    example: (n, s) => {
+      const open = timeToMinutes(firstOpenDay(s.hours)?.opensAt ?? "11:00");
+      return `Customers see start times like ${[0, 1, 2, 3].map((i) => formatTime(open + i * n)).join(", ")}…`;
+    },
+    note: "Front-desk bookings use the same start times.",
+  },
+  {
+    key: "bookingWindowDays",
+    title: "Book ahead",
+    hint: "Furthest date in the calendar",
+    description: "How far into the future customers can book online.",
+    presets: [7, 14, 21, 30, 45, 60, 90, 120, 180],
+    option: (n) => plural(n, "day"),
+    summary: (n) => `Up to ${plural(n, "day")}`,
+    example: (n) => (n === 1 ? "Customers can only book for today." : `The booking calendar shows today and the next ${plural(n - 1, "day")}.`),
+    note: "The front desk can book further ahead.",
+  },
+  {
+    key: "leadTimeMin",
+    title: "Online notice",
+    hint: "Earliest start time from now",
+    description: "How much warning you get before an online booking starts.",
+    presets: [0, 15, 30, 60, 120, 180, 240, 360, 720, 1440],
+    option: (n) => (n === 0 ? "None" : formatDuration(n)),
+    summary: noticeLabel,
+    example: (n) => {
+      if (n === 0) return "A free slot can be booked right up to its start time.";
+      const t = 14 * 60 + n;
+      return `At 2:00 pm, the earliest time offered is ${t >= 1440 ? `tomorrow at ${formatTime(t - 1440)}` : formatTime(t)}.`;
+    },
+    note: "The front desk can book a slot starting right away.",
+  },
+  {
+    key: "holdMinutes",
+    title: "Payment hold",
+    hint: "Slot kept while the customer pays",
+    description: "How long a chosen slot is reserved while the customer pays online.",
+    presets: [5, 10, 15, 20, 30, 45, 60],
+    option: (n) => `${n} min`,
+    summary: (n) => `${n} min`,
+    example: (n) => `Nobody else can take the slot for ${n} minutes; if the customer hasn't paid by then, it's released.`,
+    note: "Front-desk bookings are confirmed straight away, with no hold.",
+  },
+];
+
+function RuleDialog({ rule, settings, onDone }: { rule: RuleSpec; settings: AdminSettings; onDone: () => void }) {
+  const { run, busy } = useMutation();
+  const saved = settings[rule.key];
+  const [value, setValue] = useState(saved);
   const save = async () => {
-    const patch = { slotIntervalMin: slot, bookingWindowDays: daysNum, leadTimeMin: lead, holdMinutes: hold };
-    if (await run(() => saveRules(settings, patch), "Booking rules saved")) onDone();
+    if (await run(() => saveRules(settings, { [rule.key]: value }), `${rule.title} saved`)) onDone();
   };
 
   return (
-    <EditDialog
-      title="Booking calendar"
-      description="Which times customers can pick on the website. Front-desk bookings ignore these limits."
-      busy={busy}
-      canSave={daysOk && changed}
-      onSave={save}
-      onDone={onDone}
-    >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Time slots" hint="How often start times are offered">
-          <NativeSelect value={slot} onChange={(e) => setSlot(Number(e.target.value))}>
-            {[5, 10, 15, 20, 30, 60].map((m) => (
-              <option key={m} value={m}>
-                Every {m} min
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
-        <Field label="Book ahead (days)" hint="Furthest date in the calendar" error={daysOk ? undefined : "Enter 1 to 180 days"}>
-          <Input type="number" inputMode="numeric" min={1} max={180} value={days} onChange={(e) => setDays(e.target.value)} />
-        </Field>
-        <Field label="Online notice" hint="Earliest start time from now">
-          <NativeSelect value={lead} onChange={(e) => setLead(Number(e.target.value))}>
-            {withCurrent([0, 15, 30, 60, 120, 180, 240, 360, 720, 1440], settings.leadTimeMin).map((m) => (
-              <option key={m} value={m}>
-                {noticeLabel(m)}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
-        <Field label="Payment hold" hint="Slot kept while the customer pays">
-          <NativeSelect value={hold} onChange={(e) => setHold(Number(e.target.value))}>
-            {withCurrent([5, 10, 15, 20, 30, 45, 60], settings.holdMinutes).map((m) => (
-              <option key={m} value={m}>
-                {m} min
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
+    <EditDialog title={rule.title} description={rule.description} busy={busy} canSave={value !== saved} onSave={save} onDone={onDone}>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label={rule.title}>
+        {withCurrent(rule.presets, saved).map((n) => (
+          <SlotChip key={n} selected={n === value} onClick={() => setValue(n)} className="h-10 text-[13px]">
+            {rule.option(n)}
+          </SlotChip>
+        ))}
       </div>
+      <p className="rounded-xl bg-hover p-3 text-[13px]">{rule.example(value, settings)}</p>
+      <p className="text-xs text-muted">{rule.note}</p>
     </EditDialog>
   );
 }
@@ -458,6 +493,10 @@ function plural(n: number, unit: string): string {
 /** Preset options plus the saved value, so an unusual saved value still shows and stays selected. */
 function withCurrent(presets: number[], current: number): number[] {
   return presets.includes(current) ? presets : [...presets, current].sort((a, b) => a - b);
+}
+
+function firstOpenDay(hours: Hours) {
+  return WEEK.map((w) => hours.find((d) => d.weekday === w)).find((d) => d?.open);
 }
 
 /** Consecutive days (Mon → Sun) with the same hours, e.g. "Mon–Sat · 11:00 am – 8:00 pm". */

@@ -58,12 +58,20 @@ export async function createPortfolioItem(image: { path: string; width: number; 
   return row;
 }
 
-export async function updatePortfolioItem(id: string, input: PortfolioInput) {
-  const [row] = await sql`
-    update portfolio_items set alt = ${input.alt}, caption = ${input.caption || null}, category_id = ${input.categoryId || null},
+type PortfolioImage = { path: string; width: number; height: number };
+
+/** Saves a photo's details and, with `image`, swaps the picture (keeping its place, caption and flags). */
+export async function updatePortfolioItem(id: string, input: PortfolioInput & { image?: PortfolioImage }) {
+  const { image } = input;
+  const [row] = await sql<{ old_path: string }[]>`
+    update portfolio_items p set alt = ${input.alt}, caption = ${input.caption || null}, category_id = ${input.categoryId || null},
       featured = ${input.featured}, active = ${input.active}
-    where id = ${id} returning id`;
+      ${image ? sql`, image_path = ${image.path}, width = ${image.width}, height = ${image.height}` : sql``}
+    from (select image_path as old_path from portfolio_items where id = ${id} for update) old
+    where p.id = ${id} returning old.old_path`;
   if (!row) throw notFound("Photo");
+  // The replaced file goes once the row points elsewhere; sample pictures in /placeholders are never deleted.
+  if (image && row.old_path !== image.path) await deleteUpload(row.old_path);
   refreshPublic("content");
 }
 

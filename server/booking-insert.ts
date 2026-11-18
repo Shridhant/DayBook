@@ -32,6 +32,8 @@ export type BookingItemInput = { id: string; name: string; price_paise: number; 
 
 export type InsertBookingParams = {
   customerId: string;
+  /** Where this booking's emails go (the address typed for it); null for front-desk bookings. */
+  customerEmail: string | null;
   /** Technicians to try, best first. */
   candidateStaffIds: string[];
   startsAt: Date;
@@ -60,9 +62,9 @@ export async function insertBooking(tx: TransactionSql, p: InsertBookingParams):
       try {
         return await tx.savepoint(async (sp) => {
           const [row] = await sp<{ id: string; hold_expires_at: Date | null }[]>`
-            insert into bookings (code, customer_id, staff_id, starts_at, ends_at, status, source,
+            insert into bookings (code, customer_id, customer_email, staff_id, starts_at, ends_at, status, source,
                                   total_paise, amount_due_now_paise, hold_expires_at, notes, created_by_user_id)
-            values (${code}, ${p.customerId}, ${staffId}, ${p.startsAt}, ${p.endsAt}, ${p.status}, ${p.source},
+            values (${code}, ${p.customerId}, ${p.customerEmail}, ${staffId}, ${p.startsAt}, ${p.endsAt}, ${p.status}, ${p.source},
                     ${p.totalPaise}, ${p.amountDueNowPaise},
                     ${p.holdMinutes === null ? null : sp`now() + make_interval(mins => ${p.holdMinutes})`},
                     ${p.notes}, ${p.createdByUserId})

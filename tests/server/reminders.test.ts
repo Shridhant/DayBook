@@ -37,8 +37,8 @@ async function booking(inHours: number, opts: { bookedHoursBefore?: number; stat
   const createdAt = new Date(startsAt.getTime() - (opts.bookedHoursBefore ?? 72) * HOUR);
   const status = opts.status ?? "confirmed";
   const [b] = await testSql<{ id: string }[]>`
-    insert into bookings (code, customer_id, staff_id, starts_at, ends_at, status, source, total_paise, created_at, cancelled_at)
-    values (${`DB-Q${String(++seq).padStart(5, "0")}`}, ${opts.customer ?? ids.withEmail}, ${ids.staff}, ${startsAt},
+    insert into bookings (code, customer_id, customer_email, staff_id, starts_at, ends_at, status, source, total_paise, created_at, cancelled_at)
+    values (${`DB-Q${String(++seq).padStart(5, "0")}`}, ${opts.customer ?? ids.withEmail}, (select email from customers where id = ${opts.customer ?? ids.withEmail}), ${ids.staff}, ${startsAt},
             ${new Date(startsAt.getTime() + HOUR)}, ${status}, 'online', 120000, ${createdAt}, ${status === "cancelled" ? NOW : null})
     returning id`;
   await testSql`insert into booking_items (booking_id, service_id, name_snapshot, price_snapshot_paise, duration_snapshot_min)

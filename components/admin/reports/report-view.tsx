@@ -58,7 +58,7 @@ const METRICS: Metric[] = [
     label: "Average bill",
     value: (s) => {
       const v = avgBill(s);
-      return v === null ? "–" : formatINR(Math.round(v));
+      return v === null ? "–" : formatINR(wholeRupees(v));
     },
     hint: () => "Per completed booking",
     measure: avgBill,
@@ -74,14 +74,14 @@ const METRICS: Metric[] = [
   {
     label: "Chair utilisation",
     value: (s) => formatPercent(utilisation(s)),
-    hint: (s) => `${formatHours(s.bookedMinutes)} booked of ${formatHours(s.capacityMinutes)} on shift`,
+    hint: (s) => `${formatHours(s.bookedMinutes)} of ${formatHours(s.capacityMinutes)} on shift`,
     measure: utilisation,
     kind: "rate",
   },
   {
     label: "No-show rate",
     value: (s) => formatPercent(noShowRate(s)),
-    hint: (s) => (s.keptFromNoShowsPaise > 0 ? `${formatINR(s.keptFromNoShowsPaise)} booking amounts kept` : `${s.noShows} no-shows`),
+    hint: (s) => (s.keptFromNoShowsPaise > 0 ? `${formatINR(s.keptFromNoShowsPaise)} kept from no-shows` : `${s.noShows} no-shows`),
     measure: noShowRate,
     kind: "rate",
     upIsGood: false,
@@ -185,7 +185,7 @@ export function ReportView({ report, today, openHours }: { report: Report; today
             <BusyHeatmap cells={report.heatmap} openHours={openHours} />
           </Section>
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] [&>*]:mb-0">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] [&>*]:mb-0 [&>*]:min-w-0">
             <Section title="Revenue by category">
               <BarList
                 rows={report.categories.map((c) => ({ key: c.id, label: c.name, value: c.revenuePaise, display: formatINR(c.revenuePaise), sub: `${c.bookings} bookings` }))}
@@ -237,9 +237,7 @@ function Kpi({ label, value, delta, hint }: { label: string; value: ReactNode; d
       <p className="text-xs text-muted">{label}</p>
       <p className="mt-2 truncate text-2xl font-semibold tracking-tight">{value}</p>
       <div className="mt-1 min-h-4 text-xs">{delta}</div>
-      <p className="mt-0.5 truncate text-xs text-muted" title={hint}>
-        {hint}
-      </p>
+      <p className="mt-0.5 text-xs text-muted">{hint}</p>
     </div>
   );
 }
@@ -270,6 +268,11 @@ function RateDelta({ current, previous, upIsGood = true }: { current: number | n
   if (Math.abs(pts) < 0.05) return <DeltaText text="No change" up={null} good={null} />;
   const up = pts > 0;
   return <DeltaText text={`${up ? "+" : "−"}${Math.abs(pts).toFixed(1)} pts`} up={up} good={up === upIsGood} />;
+}
+
+/** An average in paise, rounded to whole rupees for display. */
+function wholeRupees(paise: number): number {
+  return Math.round(paise / 100) * 100;
 }
 
 function formatHours(minutes: number): string {
@@ -365,7 +368,7 @@ function ServicesTable({ report }: { report: Report }) {
   const row = (r: Report["services"][number]) => (
     <tr key={r.id} className="border-t border-line">
       <td className="py-2 pr-3">
-        <p className="truncate">{r.name}</p>
+        <p>{r.name}</p>
         <p className="text-xs text-muted">{r.category}</p>
       </td>
       <td className="py-2 text-right">{r.bookings}</td>
@@ -381,7 +384,7 @@ function ServicesTable({ report }: { report: Report }) {
   if (report.services.length === 0) return <p className="text-[13px] text-muted">Nothing in this period.</p>;
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[360px] text-[13px]">
+      <table className="w-full min-w-[320px] text-[13px]">
         <thead className="text-left text-xs text-muted">
           <tr>
             <th className={TH}>Service</th>
@@ -436,7 +439,7 @@ function ArtistsTable({ report }: { report: Report }) {
                 <td className="py-2.5 pr-3 font-medium">{a.name}</td>
                 <td className="py-2.5 text-right">{a.bookings}</td>
                 <td className="py-2.5 text-right">{formatINR(a.revenuePaise)}</td>
-                <td className="py-2.5 text-right">{a.completed ? formatINR(Math.round(a.revenuePaise / a.completed)) : "–"}</td>
+                <td className="py-2.5 text-right">{a.completed ? formatINR(wholeRupees(a.revenuePaise / a.completed)) : "–"}</td>
                 <td className="py-2.5 pl-6">
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 w-24 rounded-full" style={{ background: "color-mix(in oklab, var(--chart-1) 16%, var(--background))" }}>

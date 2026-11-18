@@ -44,7 +44,7 @@ export async function startPayment(bookingId: string): Promise<PaymentStart> {
       name: string; phone: string; email: string | null }[]
   >`
     select b.id, b.code, b.status, (b.hold_expires_at > now()) as live, b.amount_due_now_paise,
-           c.name, c.phone, c.email
+           c.name, c.phone, b.customer_email as email
     from bookings b join customers c on c.id = b.customer_id
     where b.id = ${bookingId} and b.source = 'online'`;
 

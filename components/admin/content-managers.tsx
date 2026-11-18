@@ -64,18 +64,20 @@ type PortfolioForm = { image: UploadedImage | null; alt: string; caption: string
 
 export function PortfolioManager({ items, categories }: { items: AdminPortfolioItem[]; categories: AdminCategory[] }) {
   const { run, busy } = useMutation();
-  const [editing, setEditing] = useState<{ id: string | null; form: PortfolioForm } | null>(null);
+  // `originalPath` is the saved photo, so a save only sends a new image when one was uploaded.
+  const [editing, setEditing] = useState<{ id: string | null; originalPath: string | null; form: PortfolioForm } | null>(null);
   const patch = (p: Partial<PortfolioForm>) => setEditing((e) => (e ? { ...e, form: { ...e.form, ...p } } : e));
   const categoryName = (id: string | null) => categories.find((c) => c.id === id)?.name;
 
   async function save() {
     if (!editing) return;
-    const { id, form } = editing;
+    const { id, form, originalPath } = editing;
     const body = { alt: form.alt, caption: form.caption, categoryId: form.categoryId || null, featured: form.featured, active: form.active };
+    const replaced = form.image && form.image.path !== originalPath ? form.image : undefined;
     const ok = await run(
       () =>
         id
-          ? adminFetch(`/api/admin/portfolio/${id}`, { method: "PATCH", body })
+          ? adminFetch(`/api/admin/portfolio/${id}`, { method: "PATCH", body: { ...body, image: replaced } })
           : adminFetch("/api/admin/portfolio", { method: "POST", body: { ...body, image: form.image } }),
       id ? "Photo saved" : "Photo added",
     );
@@ -87,7 +89,7 @@ export function PortfolioManager({ items, categories }: { items: AdminPortfolioI
       <div className="mb-4 flex justify-end">
         <Button
           variant="primary"
-          onClick={() => setEditing({ id: null, form: { image: null, alt: "", caption: "", categoryId: "", featured: false, active: true } })}
+          onClick={() => setEditing({ id: null, originalPath: null, form: { image: null, alt: "", caption: "", categoryId: "", featured: false, active: true } })}
         >
           <Plus /> Add photo
         </Button>
@@ -109,6 +111,7 @@ export function PortfolioManager({ items, categories }: { items: AdminPortfolioI
                     </Chip>
                   )}
                   {!item.active && <Chip>Hidden</Chip>}
+                  {isSamplePhoto(item.imagePath) && <Chip>Sample</Chip>}
                 </div>
               </div>
               <div className="flex items-start justify-between gap-1 p-2.5">
@@ -120,6 +123,7 @@ export function PortfolioManager({ items, categories }: { items: AdminPortfolioI
                   onEdit={() =>
                     setEditing({
                       id: item.id,
+                      originalPath: item.imagePath,
                       form: {
                         image: { path: item.imagePath, width: item.width, height: item.height },
                         alt: item.alt,
@@ -153,13 +157,17 @@ export function PortfolioManager({ items, categories }: { items: AdminPortfolioI
       >
         {editing && (
           <div className="grid gap-4 sm:grid-cols-[160px_minmax(0,1fr)]">
-            {editing.id ? (
-              <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-canvas">
-                {editing.form.image && <Image src={editing.form.image.path} alt="" fill sizes="160px" className="object-cover" />}
-              </div>
-            ) : (
-              <ImageUpload kind="portfolio" value={editing.form.image?.path ?? null} onChange={(image) => patch({ image })} />
-            )}
+            <div>
+              <ImageUpload
+                kind="portfolio"
+                value={editing.form.image?.path ?? null}
+                label={editing.id ? "Replace photo" : "Upload photo"}
+                onChange={(image) => patch({ image })}
+              />
+              {editing.originalPath && isSamplePhoto(editing.originalPath) && editing.form.image?.path === editing.originalPath && (
+                <p className="mt-2 text-xs text-muted">Sample picture. Upload a real photo to replace it; the caption, category and position stay.</p>
+              )}
+            </div>
             <div className="space-y-3">
               <Field label="Describe the photo" hint="For screen readers and Google, e.g. “Pink chrome almond nails with gold flakes”">
                 <Input value={editing.form.alt} maxLength={160} onChange={(e) => patch({ alt: e.target.value })} />
@@ -426,4 +434,9 @@ export function TestimonialsManager({ items }: { items: AdminTestimonial[] }) {
       </EditDialog>
     </>
   );
+}
+
+/** Seeded sample artwork (db/seed.sql), not an upload: shown with a "Sample" label until replaced. */
+function isSamplePhoto(path: string): boolean {
+  return path.startsWith("/placeholders/");
 }

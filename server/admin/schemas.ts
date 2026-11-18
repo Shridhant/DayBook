@@ -97,16 +97,17 @@ export const hoursSchema = z.object({
 
 export const closureSchema = z.object({ date: dateKey, reason: optionalText(120), force: z.boolean().default(false) });
 
+const portfolioImage = z.object({ path: uploadPath("portfolio"), width: z.number().int().positive(), height: z.number().int().positive() });
 export const portfolioSchema = z.object({
+  /** On edit: a newly uploaded photo replacing the current one (e.g. a sample picture). */
+  image: portfolioImage.optional(),
   alt: text(160).min(3, "Describe the photo for screen readers and Google"),
   caption: optionalText(80),
   categoryId: z.uuid().nullish().transform((v) => v ?? null),
   featured: z.boolean(),
   active: z.boolean(),
 });
-export const portfolioCreateSchema = portfolioSchema.extend({
-  image: z.object({ path: uploadPath("portfolio"), width: z.number().int().positive(), height: z.number().int().positive() }),
-});
+export const portfolioCreateSchema = portfolioSchema.extend({ image: portfolioImage });
 
 export const instagramSchema = z.object({
   url: text(300).min(1, "Paste the post or reel link"),

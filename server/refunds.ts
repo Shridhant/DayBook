@@ -2,6 +2,7 @@ import "server-only";
 import type { TransactionSql } from "postgres";
 import { z } from "zod";
 import { sql } from "@/lib/db";
+import { isSamplePayment } from "@/lib/demo";
 import { log } from "@/lib/log";
 import { formatINR } from "@/lib/money";
 import { createRefund, isRazorpayConfigured, RazorpayApiError, refundNoteId, type RazorpayRefund } from "@/lib/razorpay";
@@ -87,6 +88,10 @@ export async function refundBooking(params: {
   let settled = true;
   const failures: string[] = [];
   for (const row of created.rows) {
+    if (isSamplePayment(row.rzpPaymentId)) {
+      await applyRefundState(sampleRefund(row.rzpPaymentId, row.amount, row.id), row.id);
+      continue;
+    }
     try {
       const refund = await createRefund({
         paymentId: row.rzpPaymentId,
@@ -111,6 +116,11 @@ export async function refundBooking(params: {
 
   if (failures.length) throw new RefundError("rejected", `Razorpay didn't accept the refund: ${failures[0]}`);
   return { amountPaise: created.rows.reduce((s, r) => s + r.amount, 0), status: settled ? "pending" : "creating" };
+}
+
+/** What Razorpay would answer for a demo sample payment: refunded straight away. */
+function sampleRefund(paymentId: string, amount: number, refundId: string): RazorpayRefund {
+  return { id: `rfnd_demo${refundId.replaceAll("-", "").slice(-14)}`, payment_id: paymentId, amount, currency: "INR", status: "processed", notes: { refund_id: refundId } };
 }
 
 /* ---------- Recording Razorpay's answer (API response or webhook) ---------- */

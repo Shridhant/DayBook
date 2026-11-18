@@ -339,6 +339,7 @@ export async function createAdminBooking(request: AdminBookingRequest): Promise<
       returning id`;
     const inserted = await insertBooking(tx, {
       customerId: customer.id,
+      customerEmail: null,
       candidateStaffIds: slot.staffIds,
       startsAt: slot.startsAt,
       endsAt: slot.endsAt,

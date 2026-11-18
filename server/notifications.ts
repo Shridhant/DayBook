@@ -37,7 +37,7 @@ async function loadSummary(db: Db, bookingId: string): Promise<BookingSummary | 
       items: { name: string; pricePaise: number }[] | null;
     }[]
   >`
-    select b.id, b.code, b.source, c.name as customer_name, c.phone as customer_phone, c.email as customer_email,
+    select b.id, b.code, b.source, c.name as customer_name, c.phone as customer_phone, b.customer_email,
            st.name as staff_name, b.starts_at, b.ends_at, b.total_paise, b.notes,
            coalesce((select sum(p.amount_paise - p.refunded_paise) from payments p
                      where p.booking_id = b.id and p.status = 'captured'), 0)::int as paid_paise,

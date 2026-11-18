@@ -94,6 +94,7 @@ export async function createHold(request: HoldRequest): Promise<Hold> {
 
     const booking = await insertBooking(tx, {
       customerId: customer.id,
+      customerEmail: request.customer.email ?? null,
       candidateStaffIds: slot.staffIds,
       startsAt: slot.startsAt,
       endsAt: slot.endsAt,

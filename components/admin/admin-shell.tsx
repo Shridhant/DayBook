@@ -25,6 +25,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, useId, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { DemoBanner } from "@/components/demo-banner";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { SIDEBAR_EVENT, SIDEBAR_KEY } from "@/lib/admin-theme";
@@ -199,6 +200,19 @@ function SidebarBody({
           <p className="truncate text-[11px] text-muted">Admin</p>
         </div>
         {showBell && <NotificationBell />}
+        {rail && (
+          <Tooltip content={collapsed ? "Expand sidebar" : "Collapse sidebar"} side={collapsed ? "right" : "bottom"}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
+              onClick={() => setSidebarCollapsed(!collapsed)}
+            >
+              {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+            </Button>
+          </Tooltip>
+        )}
       </div>
       <nav aria-label="Admin" className="flex-1 overflow-y-auto px-2 py-2">
         <NavList role={user.role} onNavigate={onNavigate} rail={rail} />
@@ -222,19 +236,6 @@ function SidebarBody({
         </div>
         <ThemeToggle />
         <SignOutButton iconOnly />
-        {rail && (
-          <Tooltip content={collapsed ? "Expand sidebar" : "Collapse sidebar"} side={collapsed ? "right" : "top"}>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              aria-expanded={!collapsed}
-              onClick={() => setSidebarCollapsed(!collapsed)}
-            >
-              {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
-            </Button>
-          </Tooltip>
-        )}
       </div>
     </div>
   );
@@ -248,6 +249,7 @@ export function AdminShell({ user, brand, children }: { user: ShellUser; brand: 
     <TooltipProvider>
       <NotificationsProvider>
       <div
+        data-admin-shell
         className={cn(
           "min-h-dvh lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:sidebar-collapsed:grid-cols-[60px_minmax(0,1fr)]",
           "transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
@@ -258,6 +260,7 @@ export function AdminShell({ user, brand, children }: { user: ShellUser; brand: 
         </aside>
 
         <div className="flex min-w-0 flex-col">
+          <DemoBanner />
           <div className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-surface/90 px-3 backdrop-blur-md lg:hidden">
             <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
               <SheetTrigger asChild>

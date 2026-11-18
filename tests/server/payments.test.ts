@@ -52,9 +52,9 @@ async function makeBooking(opts: BookingOptions = {}) {
   const starts = `${DATE} 00:00+05:30`;
   const hold = status === "pending" ? (holdLive ? "now() + interval '10 minutes'" : "now() - interval '1 minute'") : null;
   const [row] = await testSql<{ id: string; code: string }[]>`
-    insert into bookings (code, customer_id, staff_id, starts_at, ends_at, status, source, total_paise,
+    insert into bookings (code, customer_id, customer_email, staff_id, starts_at, ends_at, status, source, total_paise,
                           amount_due_now_paise, hold_expires_at, cancelled_at)
-    values (${`DB-P${String(++seq).padStart(5, "0")}`}, ${customerId}, ${staffId},
+    values (${`DB-P${String(++seq).padStart(5, "0")}`}, ${customerId}, (select email from customers where id = ${customerId}), ${staffId},
             ${starts}::timestamptz + make_interval(mins => ${b * 30}),
             ${starts}::timestamptz + make_interval(mins => ${b * 30 + 30}),
             ${status}, 'online', 120000, ${dueNow},

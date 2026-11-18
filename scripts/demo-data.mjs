@@ -235,6 +235,7 @@ try {
               id,
               code: code(),
               customer_id: customer.id,
+              customer_email: source === "online" ? customer.email : null,
               staff_id: artist.id,
               starts_at: startsAt,
               ends_at: endsAt,

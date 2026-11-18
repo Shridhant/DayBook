@@ -8,6 +8,12 @@ import { getAdminBooking } from "@/server/admin/bookings";
 import { applyRefundState, refundBooking, RefundError } from "@/server/refunds";
 import { cleanupBookingEvents, testSql } from "../helpers/test-db";
 
+// Demo mode on, so sample payments (pay_demo…) take the in-app path; every other id here is a normal one.
+vi.mock("@/lib/demo", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/demo")>();
+  return { ...actual, DEMO_MODE: true, isSamplePayment: (id: string) => id.startsWith("pay_demo") };
+});
+
 /** Refunds against the TEST database, with Razorpay's HTTP API stubbed (no network). Day +16. */
 
 const DATE = addDays(istToday(), 16);
@@ -40,16 +46,16 @@ afterAll(async () => {
 });
 
 /** A cancelled online booking with a captured ₹500 payment. */
-async function paidBooking(opts: { status?: string; needsReview?: boolean } = {}) {
+async function paidBooking(opts: { status?: string; needsReview?: boolean; paymentPrefix?: string } = {}) {
   const n = ++seq;
   const [b] = await testSql<{ id: string }[]>`
-    insert into bookings (code, customer_id, staff_id, starts_at, ends_at, status, source, total_paise, amount_due_now_paise, cancelled_at)
-    values (${`DB-R${String(n).padStart(5, "0")}`}, ${ids.customer}, ${ids.staff},
+    insert into bookings (code, customer_id, customer_email, staff_id, starts_at, ends_at, status, source, total_paise, amount_due_now_paise, cancelled_at)
+    values (${`DB-R${String(n).padStart(5, "0")}`}, ${ids.customer}, (select email from customers where id = ${ids.customer}), ${ids.staff},
             ${`${DATE} 00:00+05:30`}::timestamptz + make_interval(mins => ${n * 30}),
             ${`${DATE} 00:00+05:30`}::timestamptz + make_interval(mins => ${n * 30 + 30}),
             ${opts.status ?? "cancelled"}, 'online', 120000, 50000, ${(opts.status ?? "cancelled") === "cancelled" ? new Date() : null})
     returning id`;
-  const paymentId = `pay_${tag}${n}`;
+  const paymentId = `${opts.paymentPrefix ?? "pay_"}${tag}${n}`;
   await testSql`
     insert into payments (booking_id, rzp_order_id, rzp_payment_id, amount_paise, status, needs_review)
     values (${b.id}, ${`order_${tag}${n}`}, ${paymentId}, 50000, 'captured', ${opts.needsReview ?? false})`;
@@ -213,3 +219,20 @@ describe("refund webhooks", () => {
     expect(await testSql`select 1 from refunds where raw->>'payment_id' = ${`pay_${tag}unknown`}`).toHaveLength(0);
   });
 });
+
+describe("demo sample payments", () => {
+  it("refunds a sample booking inside the app, without calling Razorpay", async () => {
+    const { bookingId, paymentId } = await paidBooking({ paymentPrefix: "pay_demo", needsReview: true });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const outcome = await refundBooking({ bookingId, userId: null, source: "admin" });
+    expect(outcome.amountPaise).toBe(50000);
+    expect(fetchMock).not.toHaveBeenCalled();
+    const [refund] = await refundsOf(bookingId);
+    expect(refund).toMatchObject({ status: "processed", amount_paise: 50000 });
+    expect(refund.rzp_refund_id).toMatch(/^rfnd_demo/);
+    expect(await paymentState(paymentId)).toEqual({ refunded_paise: 50000, needs_review: false });
+  });
+});
+

@@ -37,8 +37,8 @@ afterAll(async () => {
 async function booking(customerId: string, source: "online" | "walk_in" = "online") {
   const n = ++seq;
   const [b] = await testSql<{ id: string }[]>`
-    insert into bookings (code, customer_id, staff_id, starts_at, ends_at, status, source, total_paise)
-    values (${`DB-N${String(n).padStart(4, "0")}`}, ${customerId}, ${ids.staff},
+    insert into bookings (code, customer_id, customer_email, staff_id, starts_at, ends_at, status, source, total_paise)
+    values (${`DB-N${String(n).padStart(4, "0")}`}, ${customerId}, (select email from customers where id = ${customerId}), ${ids.staff},
             ${`${DATE} 00:00+05:30`}::timestamptz + make_interval(hours => ${n}),
             ${`${DATE} 00:00+05:30`}::timestamptz + make_interval(hours => ${n}, mins => 45),
             'confirmed', ${source}, 120000)

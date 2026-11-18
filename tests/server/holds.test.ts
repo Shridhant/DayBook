@@ -86,6 +86,25 @@ describe("createHold", () => {
     expect(items).toEqual([{ name_snapshot: "Gel manicure", price_snapshot_paise: 123400, duration_snapshot_min: 60 }]);
   });
 
+  it("sends each booking's emails to the address typed for it, without changing the customer's saved email", async () => {
+    const phone = nextPhone();
+    const first = await createHold(request("12:00", { customer: { name: "Repeat", phone, email: "first@mail.daybook-tests.in" } }));
+    // Same phone later, a different email: this booking uses it; the customer record keeps the first.
+    const second = await createHold(request("13:00", { customer: { name: "Repeat", phone, email: "second@mail.daybook-tests.in" } }));
+    const third = await createHold(request("14:00", { customer: { name: "Repeat", phone } }));
+
+    const rows = await testSql<{ id: string; customer_email: string | null; saved: string | null }[]>`
+      select b.id, b.customer_email, c.email as saved from bookings b join customers c on c.id = b.customer_id
+      where b.id in ${testSql([first.bookingId, second.bookingId, third.bookingId])}`;
+    const emailOf = (id: string) => rows.find((r) => r.id === id)?.customer_email;
+    expect(emailOf(first.bookingId)).toBe("first@mail.daybook-tests.in");
+    expect(emailOf(second.bookingId)).toBe("second@mail.daybook-tests.in");
+    expect(emailOf(third.bookingId)).toBeNull(); // no email given: nothing is sent to an older address
+    expect(new Set(rows.map((r) => r.saved))).toEqual(new Set(["first@mail.daybook-tests.in"]));
+    // Free the slot for the tests below (only the latest hold is still live).
+    await testSql`update bookings set status = 'expired' where id = ${third.bookingId}`;
+  });
+
   it("uses a service's booking-amount override", async () => {
     const hold = await createHold(request("18:00", { serviceIds: [ids.ext] })); // 18:00–20:00, A is free
     expect(hold.amountDueNowPaise).toBe(100000);

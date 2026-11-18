@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { DemoBanner } from "@/components/demo-banner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { site } from "@/lib/site";
 import { requirePageUser } from "@/server/admin/auth";
@@ -27,7 +28,7 @@ async function AdminGate({ children }: { children: React.ReactNode }) {
 
 function ShellSkeleton() {
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[220px_minmax(0,1fr)]" aria-busy="true" aria-label="Loading">
+    <div data-admin-shell className="min-h-dvh lg:grid lg:grid-cols-[220px_minmax(0,1fr)]" aria-busy="true" aria-label="Loading">
       <div className="hidden border-r border-line bg-canvas p-3 lg:block">
         <Skeleton className="h-7 w-28" />
         <div className="mt-6 space-y-2">
@@ -36,9 +37,12 @@ function ShellSkeleton() {
           ))}
         </div>
       </div>
-      <div className="p-6">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="mt-6 h-64 rounded-xl" />
+      <div>
+        <DemoBanner />
+        <div className="p-6">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="mt-6 h-64 rounded-xl" />
+        </div>
       </div>
     </div>
   );

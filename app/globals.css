@@ -79,6 +79,11 @@
 }
 
 /* ---------- Base ---------- */
+/* The admin shell shows the demo strip inside its content column instead (components/demo-banner.tsx). */
+body:has([data-admin-shell]) > [data-demo-banner] {
+  display: none;
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;

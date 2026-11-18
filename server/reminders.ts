@@ -19,9 +19,9 @@ export const REMINDER_MIN_LEAD_HOURS = 2;
  */
 export async function queueDueReminders(now = new Date(), limit = 100): Promise<number> {
   const due = await sql<{ id: string }[]>`
-    select b.id from bookings b join customers c on c.id = b.customer_id
+    select b.id from bookings b
     where b.status = 'confirmed'
-      and c.email is not null
+      and b.customer_email is not null
       and b.starts_at > ${now}::timestamptz + make_interval(hours => ${REMINDER_MIN_LEAD_HOURS})
       and b.starts_at <= ${now}::timestamptz + make_interval(hours => ${REMINDER_HOURS})
       and b.created_at <= b.starts_at - make_interval(hours => ${REMINDER_HOURS})

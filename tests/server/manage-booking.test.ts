@@ -58,8 +58,8 @@ async function booking(opts: { from?: string; date?: string; staffId?: string; p
   const date = opts.date ?? DATE;
   const from = opts.from ?? "12:00";
   const [b] = await testSql<{ id: string; code: string }[]>`
-    insert into bookings (code, customer_id, staff_id, starts_at, ends_at, status, source, total_paise, amount_due_now_paise, reschedule_count)
-    values (${`DB-M${String(n).padStart(5, "0")}`}, ${ids.customer}, ${opts.staffId ?? ids.a},
+    insert into bookings (code, customer_id, customer_email, staff_id, starts_at, ends_at, status, source, total_paise, amount_due_now_paise, reschedule_count)
+    values (${`DB-M${String(n).padStart(5, "0")}`}, ${ids.customer}, (select email from customers where id = ${ids.customer}), ${opts.staffId ?? ids.a},
             ${at(from, date)}, ${new Date(at(from, date).getTime() + 3_600_000)}, 'confirmed', 'online', 120000, 50000, ${opts.rescheduleCount ?? 0})
     returning id, code`;
   await testSql`insert into booking_items (booking_id, service_id, name_snapshot, price_snapshot_paise, duration_snapshot_min)

@@ -38,7 +38,9 @@ export function VisitSection({ openingHours }: { openingHours: Catalog["openingH
           </>
         }
       />
-      <div className="grid gap-10 lg:grid-cols-2">
+      {/* With a map: hours and contact on the left, map on the right. Without one, the hours span
+          the panel (one row of days on laptops) instead of leaving the right half empty. */}
+      <div className={cn("grid gap-10", site.address && "lg:grid-cols-2")}>
         <div>
           {site.address && (
             <p className="flex items-start gap-3 text-[17px]">
@@ -47,26 +49,7 @@ export function VisitSection({ openingHours }: { openingHours: Catalog["openingH
             </p>
           )}
 
-          <table className={cn("w-full text-[15px]", site.address && "mt-6")}>
-            <caption className="sr-only">Opening hours (India time)</caption>
-            <tbody>
-              {WEEK.map(({ day, label }) => {
-                const hours = openingHours[day];
-                const isToday = day === today;
-                return (
-                  <tr key={day} className={cn(isToday && "bg-accent-soft")}>
-                    <th scope="row" className={cn("rounded-l-lg py-2 pl-3 text-left font-normal", isToday && "font-medium")}>
-                      {label}
-                      {isToday && <span className="ml-2 text-[13px] text-accent-hover">Today</span>}
-                    </th>
-                    <td className={cn("rounded-r-lg py-2 pr-3 text-right tabular-nums", !hours && "text-muted")}>
-                      {hours ? `${formatTime(hours.opens)} – ${formatTime(hours.closes)}` : "Closed"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <OpeningHours openingHours={openingHours} today={today} across={!site.address} className={cn(site.address && "mt-6")} />
 
           {(whatsapp || tel || site.mapsUrl) && (
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -99,6 +82,75 @@ export function VisitSection({ openingHours }: { openingHours: Catalog["openingH
       </div>
     </PageSection>
   );
+}
+
+/**
+ * Opening hours, today highlighted. A list with row lines on phones (and beside the map); with
+ * `across`, one tile per day in a single row from lg, so the week reads left to right.
+ */
+function OpeningHours({
+  openingHours,
+  today,
+  across,
+  className,
+}: {
+  openingHours: Catalog["openingHours"];
+  today: Weekday | null;
+  across: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <h3 className="sr-only">Opening hours (India time)</h3>
+      <dl className={cn("divide-y divide-line border-y border-line text-[15px]", across && "lg:grid lg:grid-cols-7 lg:gap-2 lg:divide-y-0 lg:border-0")}>
+        {WEEK.map(({ day, label }) => {
+          const hours = openingHours[day];
+          const isToday = day === today;
+          return (
+            <div
+              key={day}
+              className={cn(
+                "flex items-center justify-between gap-4 px-3 py-3",
+                isToday && "rounded-lg bg-accent-soft",
+                across && "lg:flex-col lg:items-start lg:justify-start lg:gap-1.5 lg:rounded-xl lg:border lg:border-line lg:p-4",
+                across && isToday && "lg:border-accent-soft",
+              )}
+            >
+              <dt className={cn("flex items-center gap-2", isToday && "font-medium")}>
+                {label}
+                {isToday && <TodayBadge className={cn(across && "lg:hidden")} />}
+              </dt>
+              <dd className={cn("text-right tabular-nums", across && "lg:text-left", !hours && "text-muted")}>
+                {hours ? (
+                  <>
+                    {formatTime(hours.opens)}
+                    {/* Tiles stack the times: "11:00 am" over "to 8:00 pm". */}
+                    <span className={cn(across && "hidden")}> – </span>
+                    {across && (
+                      <>
+                        <span className="lg:hidden"> – </span>
+                        <span className="hidden text-muted lg:inline"> to</span>
+                        <br className="hidden lg:block" />
+                      </>
+                    )}
+                    {formatTime(hours.closes)}
+                  </>
+                ) : (
+                  "Closed"
+                )}
+              </dd>
+              {/* In a tile the badge sits under the hours, so every day's times line up. */}
+              {isToday && across && <TodayBadge className="mt-1 hidden lg:inline-flex" />}
+            </div>
+          );
+        })}
+      </dl>
+    </div>
+  );
+}
+
+function TodayBadge({ className }: { className?: string }) {
+  return <span className={cn("inline-flex rounded-full bg-accent px-2 py-0.5 text-[12px] font-medium text-white", className)}>Today</span>;
 }
 
 /** Loads Google Maps only when the map scrolls near the viewport (DESIGN.md §11.7). */

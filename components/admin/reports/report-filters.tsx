@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, NativeSelect } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import { PRESET_LABEL, REPORT_PRESETS, REPORT_SOURCES, SOURCE_LABEL, type ReportPreset } from "@/lib/reports";
 
 export type ReportFilterValues = {
@@ -49,7 +50,7 @@ export function ReportFilters({
 
   return (
     <div className="mb-5 space-y-2">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
         <NativeSelect
           aria-label="Period"
           value={values.preset}
@@ -83,14 +84,14 @@ export function ReportFilters({
           ))}
         </NativeSelect>
         <NativeSelect aria-label="Booked via" value={values.source} onChange={(e) => go({ source: e.target.value })}>
-          <option value="">Online, walk-in and phone</option>
+          <option value="">All channels</option>
           {REPORT_SOURCES.map((s) => (
             <option key={s} value={s}>
               {SOURCE_LABEL[s]} only
             </option>
           ))}
         </NativeSelect>
-        <div className="flex items-center gap-2">
+        <div className={cn("col-span-2 flex items-center gap-2 lg:col-span-1", !filtered && !pending && "hidden lg:flex")}>
           {filtered && (
             <Button variant="ghost" onClick={() => go({ staff: "", category: "", source: "" })}>
               Clear filters
