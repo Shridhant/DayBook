@@ -135,8 +135,19 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   return <NotificationsContext value={{ data, sound, toggleSound, markRead }}>{children}</NotificationsContext>;
 }
 
-/** Bell button + popover. Must be inside NotificationsProvider. */
-export function NotificationBell() {
+/**
+ * Bell button + popover. Must be inside NotificationsProvider. `trigger` replaces the icon button
+ * (the desktop sidebar renders it as a navigation row); it must be a single focusable element.
+ */
+export function NotificationBell({
+  trigger,
+  side = "bottom",
+  align = "end",
+}: {
+  trigger?: (unread: number) => ReactNode;
+  side?: "top" | "right" | "bottom" | "left";
+  align?: "start" | "center" | "end";
+} = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ctx = useContext(NotificationsContext);
@@ -148,6 +159,7 @@ export function NotificationBell() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
+        {trigger ? trigger(unread) : (
         <Button variant="ghost" size="icon" className="relative" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}>
           <Bell />
           {unread > 0 && (
@@ -156,8 +168,9 @@ export function NotificationBell() {
             </span>
           )}
         </Button>
+        )}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(360px,calc(100vw-24px))] p-0">
+      <PopoverContent side={side} align={align} className="w-[min(360px,calc(100vw-24px))] p-0">
         <div className="flex items-center justify-between border-b border-line px-3 py-2">
           <p className="font-semibold">Notifications</p>
           <div className="flex items-center gap-1">

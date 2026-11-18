@@ -45,7 +45,8 @@ export function AdminThemeSync() {
   return null;
 }
 
-export function ThemeToggle() {
+/** Dark mode state and its toggle, for buttons and menu items alike. */
+export function useAdminTheme() {
   const dark = useDark();
   function toggle() {
     try {
@@ -56,6 +57,11 @@ export function ThemeToggle() {
     }
     window.dispatchEvent(new Event(EVENT));
   }
+  return { dark, toggle };
+}
+
+export function ThemeToggle() {
+  const { dark, toggle } = useAdminTheme();
   return (
     <Tooltip content={dark ? "Light mode" : "Dark mode"}>
       <Button variant="ghost" size="icon" onClick={toggle} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}>

@@ -28,16 +28,17 @@ async function AdminGate({ children }: { children: React.ReactNode }) {
 
 function ShellSkeleton() {
   return (
-    <div data-admin-shell className="min-h-dvh lg:grid lg:grid-cols-[220px_minmax(0,1fr)]" aria-busy="true" aria-label="Loading">
-      <div className="hidden border-r border-line bg-canvas p-3 lg:block">
-        <Skeleton className="h-7 w-28" />
+    <div data-admin-shell className="min-h-dvh lg:flex" aria-busy="true" aria-label="Loading">
+      {/* Same widths as the real sidebar (expanded or rail), so nothing shifts when it loads. */}
+      <div className="sticky top-0 hidden h-dvh w-[232px] shrink-0 overflow-hidden border-r border-line bg-canvas p-3 sidebar-collapsed:w-[60px] lg:block">
+        <Skeleton className="h-7 w-28 sidebar-collapsed:w-7" />
         <div className="mt-6 space-y-2">
-          {Array.from({ length: 3 }, (_, i) => (
+          {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="h-8" />
           ))}
         </div>
       </div>
-      <div>
+      <div className="min-w-0 flex-1">
         <DemoBanner />
         <div className="p-6">
           <Skeleton className="h-5 w-40" />

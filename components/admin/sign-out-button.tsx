@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 
-export function SignOutButton({ variant = "ghost", iconOnly = false }: { variant?: ButtonProps["variant"]; iconOnly?: boolean }) {
+/** Signs out and returns to the login page; shared by the button and the admin account menu. */
+export function useSignOut() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -19,6 +20,11 @@ export function SignOutButton({ variant = "ghost", iconOnly = false }: { variant
     }
   }
 
+  return { signOut, busy };
+}
+
+export function SignOutButton({ variant = "ghost", iconOnly = false }: { variant?: ButtonProps["variant"]; iconOnly?: boolean }) {
+  const { signOut, busy } = useSignOut();
   return (
     <Button variant={variant} size={iconOnly ? "icon" : "sm"} onClick={signOut} loading={busy} aria-label="Sign out">
       {!busy && <LogOut />}

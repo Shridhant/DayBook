@@ -34,11 +34,13 @@ export const MenuTrigger = RMenu.Trigger;
 
 export function MenuContent({
   children,
+  side = "bottom",
   align = "end",
   sideOffset = 6,
   className,
 }: {
   children: ReactNode;
+  side?: "top" | "right" | "bottom" | "left";
   align?: "start" | "center" | "end";
   sideOffset?: number;
   className?: string;
@@ -49,7 +51,7 @@ export function MenuContent({
     <AnimatePresence>
       {open && (
         <RMenu.Portal forceMount>
-          <RMenu.Content asChild forceMount align={align} sideOffset={sideOffset}>
+          <RMenu.Content asChild forceMount side={side} align={align} sideOffset={sideOffset}>
             <motion.div
               className={cn(
                 "glass thin-scroll z-50 min-w-44 overflow-y-auto rounded-xl p-1 text-[13px] text-ink outline-none",
@@ -122,11 +124,13 @@ export const PopoverClose = RPopover.Close;
 
 export function PopoverContent({
   children,
+  side = "bottom",
   align = "center",
   sideOffset = 6,
   className,
 }: {
   children: ReactNode;
+  side?: "top" | "right" | "bottom" | "left";
   align?: "start" | "center" | "end";
   sideOffset?: number;
   className?: string;
@@ -137,7 +141,7 @@ export function PopoverContent({
     <AnimatePresence>
       {open && (
         <RPopover.Portal forceMount>
-          <RPopover.Content asChild forceMount align={align} sideOffset={sideOffset}>
+          <RPopover.Content asChild forceMount side={side} align={align} sideOffset={sideOffset}>
             <motion.div
               className={cn(
                 "glass z-50 w-72 rounded-xl p-3 text-[13px] text-ink outline-none origin-[var(--radix-popover-content-transform-origin)]",
