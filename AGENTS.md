@@ -206,6 +206,18 @@ pending (hold, ~15 min) ──payment captured──► confirmed ──► comp
 ```
 Walk-in/phone bookings created by admin start as `confirmed` with no payment.
 
+### State machines (where each one lives)
+Every status column is a state machine. Change a lifecycle in its module first, keep its tests and the migration's `check (status in …)` in step, and guard every write with the current status (`update … where status = <expected>`) so retries and races are no-ops.
+
+| Machine | Column | Rules | Tests |
+|---|---|---|---|
+| Booking | `bookings.status` | `lib/booking-status.ts`: the full diagram, including system transitions; admin/staff actions are the `TRANSITIONS` table | `tests/server/booking-status.test.ts` |
+| Payment | `payments.status` | `lib/payment-status.ts`: forward only; captured is settled. A repeat of the same capture returns its first outcome; a second payment on a paid order is flagged and never captured | `tests/lib/payment-status.test.ts`, `tests/server/payments.test.ts` |
+| Refund | `refunds.status` | `lib/refund-status.ts`: creating → pending → processed, or → failed; processed/failed are final | `tests/lib/refund-status.test.ts`, `tests/server/refunds.test.ts` |
+| Email outbox | `email_outbox.status` | `server/email.ts`: pending → sending → sent; a failure goes back to pending with backoff, then failed after `MAX_ATTEMPTS`; older than a day → expired; stuck in sending for 10 min → pending | `tests/server/notifications.test.ts` |
+| Leave | `staff_leave.status` | requested → approved or rejected (front desk, `server/admin/staff-admin.ts`); a technician may withdraw (delete) only while requested | `tests/server/staff-portal.test.ts` |
+| Booking flow (client) | `step` 0–4 in `components/booking/booking-flow.tsx` | Steps only go back through the progress bar; any change before paying clears the hold (`clearFrom`); `outcome` replaces the flow with the confirmation | none (Playwright later) |
+
 ### Payments (Razorpay)
 1. Client asks server to hold a slot → server validates everything, creates a `pending` booking + Razorpay **order** for `amount_due_now_paise`, stores a `payments` row.
 2. Client opens Razorpay Checkout with the `order_id`.

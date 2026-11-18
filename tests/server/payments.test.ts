@@ -184,6 +184,37 @@ describe("recordPayment", () => {
     expect((await recordPayment(payment(`order_${tag}nope`))).outcome).toBe("unknown_order");
     expect((await recordPayment(payment(null))).outcome).toBe("unknown_order");
   });
+  it("treats a repeat of the same capture as handled, whatever happened to the booking since", async () => {
+    // verify, payment.captured and order.paid all report one capture; a cancel or no-show can land in between.
+    for (const later of ["cancelled", "no_show"]) {
+      const { bookingId, orderId } = await makeBooking();
+      const p = payment(orderId);
+      expect((await recordPayment(p)).outcome).toBe("confirmed");
+      await testSql`update bookings set status = ${later}, cancelled_at = ${later === "cancelled" ? new Date() : null} where id = ${bookingId}`;
+
+      expect((await recordPayment(p)).outcome).toBe("already_confirmed");
+      expect(await paymentRow(orderId!)).toMatchObject({ status: "captured", rzp_payment_id: p.id, needs_review: false });
+      const alerts = await testSql`select 1 from notifications where booking_id = ${bookingId} and type = 'payment_review'`;
+      expect(alerts).toHaveLength(0);
+    }
+  });
+
+  it("repeats a needs-review outcome instead of reporting a flagged payment as confirmed", async () => {
+    const { orderId } = await makeBooking();
+    const p = payment(orderId, { amount: 100 });
+    expect((await recordPayment(p)).outcome).toBe("needs_review");
+    expect((await recordPayment(p)).outcome).toBe("needs_review");
+  });
+
+  it("flags a second payment on an already-paid order and keeps the first one on record", async () => {
+    const { bookingId, orderId } = await makeBooking();
+    const first = payment(orderId);
+    expect((await recordPayment(first)).outcome).toBe("confirmed");
+
+    expect((await recordPayment(payment(orderId))).outcome).toBe("needs_review");
+    expect(await paymentRow(orderId!)).toMatchObject({ status: "captured", rzp_payment_id: first.id, needs_review: true });
+    expect((await bookingStatus(bookingId)).status).toBe("confirmed");
+  });
 });
 
 /* ---------- settlePayment (API fetch + capture) ---------- */
@@ -198,6 +229,18 @@ describe("settlePayment", () => {
     expect((await bookingStatus(bookingId)).status).toBe("confirmed");
     const [, captureCall] = fetchMock.mock.calls as unknown as [string, RequestInit][];
     expect(captureCall[0]).toContain(`/payments/${base.id}/capture`);
+  });
+
+  it("doesn't capture a second payment on an order that's already paid", async () => {
+    const { orderId } = await makeBooking();
+    const first = payment(orderId);
+    expect((await recordPayment(first)).outcome).toBe("confirmed");
+
+    const second = { id: `pay_${tag}dup`, order_id: orderId, amount: 50000, currency: "INR", status: "authorized" };
+    const fetchMock = stubRazorpay({ body: second });
+    expect(await settlePayment(second.id)).toMatchObject({ outcome: "needs_review", orderId });
+    expect(fetchMock).toHaveBeenCalledTimes(1); // the fetch only, no capture call
+    expect((await paymentRow(orderId!)).rzp_payment_id).toBe(first.id);
   });
 });
 

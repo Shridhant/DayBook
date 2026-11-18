@@ -5,6 +5,7 @@ import { sql } from "@/lib/db";
 import { log } from "@/lib/log";
 import { formatINR } from "@/lib/money";
 import { createRefund, isRazorpayConfigured, RazorpayApiError, refundNoteId, type RazorpayRefund } from "@/lib/razorpay";
+import { nextRefundStatus, type RefundStatus } from "@/lib/refund-status";
 import { onRefundFailed, onRefundStarted } from "./notifications";
 
 /**
@@ -18,7 +19,7 @@ import { onRefundFailed, onRefundStarted } from "./notifications";
  * recorded too.
  */
 
-export type RefundStatus = "creating" | "pending" | "processed" | "failed";
+export type { RefundStatus };
 
 export class RefundError extends Error {
   constructor(
@@ -114,8 +115,6 @@ export async function refundBooking(params: {
 
 /* ---------- Recording Razorpay's answer (API response or webhook) ---------- */
 
-const RANK: Record<RefundStatus, number> = { creating: 0, pending: 1, processed: 2, failed: 3 };
-
 async function releaseAmount(tx: TransactionSql, refundId: string) {
   // The money stays with the salon: give it back to "refundable" and flag the payment for review.
   await tx`
@@ -153,8 +152,7 @@ export async function applyRefundState(refund: RazorpayRefund, ourId?: string | 
       await recordDashboardRefund(tx, refund);
       return;
     }
-    // Final states never change; a processed refund can't fail afterwards.
-    if (row.status === "failed" || row.status === "processed" || RANK[refund.status] <= RANK[row.status]) return;
+    if (!nextRefundStatus(row.status, refund.status)) return;
 
     await tx`update refunds set status = ${refund.status}, rzp_refund_id = ${refund.id}, raw = ${tx.json(refund)} where id = ${row.id}`;
     if (refund.status === "failed") {

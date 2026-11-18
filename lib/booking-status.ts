@@ -2,9 +2,26 @@
 export type BookingStatus = "pending" | "confirmed" | "completed" | "no_show" | "cancelled" | "expired";
 
 /**
- * Booking status lifecycle (AGENTS.md §7). Admin actions map to transitions; anything not listed
- * here is refused. Pure, so both the server and the admin UI use it.
+ * Booking status lifecycle (AGENTS.md §7), the whole machine in one place.
  *
+ * Created as:
+ *   online hold          ──► pending    (server/holds.ts, hold_expires_at ≈ 15 min)
+ *   front desk booking   ──► confirmed  (server/admin/bookings.ts, no payment)
+ *
+ * System transitions (each is a conditional UPDATE guarded by the current status, so retries
+ * and races are no-ops):
+ *   pending   ──paid, or ₹0 due──────────► confirmed  (server/payments.ts)
+ *   pending   ──hold expires─────────────► expired    (flipped lazily before new holds:
+ *                                                      server/holds.ts, server/admin/bookings.ts)
+ *   expired   ──late payment, slot free──► confirmed  (server/payments.ts; slot taken → owner review)
+ *   confirmed ──customer cancels─────────► cancelled  (server/manage-booking.ts; refund per policy)
+ *   confirmed ──customer reschedules─────► confirmed  (same status, new time)
+ *
+ * A pending booking whose hold has passed counts as expired everywhere, even before it's
+ * flipped. The database's no-overlap constraint covers pending, confirmed and completed.
+ *
+ * Admin and technician actions are the table below; anything not listed is refused. Pure, so the
+ * server and the UI share it:
  *   pending   ──cancel──► cancelled            (releases a customer's hold)
  *   confirmed ──complete─► completed ──reopen─► confirmed
  *   confirmed ──no_show──► no_show   ──reopen─► confirmed

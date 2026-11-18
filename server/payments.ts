@@ -2,6 +2,7 @@ import "server-only";
 import postgres from "postgres";
 import { sql } from "@/lib/db";
 import { formatINR } from "@/lib/money";
+import { isSettled, nextPaymentStatus, type PaymentStatus } from "@/lib/payment-status";
 import { toE164 } from "@/lib/phone";
 import {
   capturePayment,
@@ -112,8 +113,10 @@ export async function recordPayment(payment: RazorpayPayment): Promise<{ outcome
   if (!payment.order_id) return { outcome: "unknown_order", code: null };
 
   return sql.begin(async (tx) => {
-    const [row] = await tx<{ id: string; booking_id: string; amount_paise: number; status: string; code: string }[]>`
-      select p.id, p.booking_id, p.amount_paise, p.status, b.code
+    const [row] = await tx<
+      { id: string; booking_id: string; amount_paise: number; status: PaymentStatus; rzp_payment_id: string | null; needs_review: boolean; code: string }[]
+    >`
+      select p.id, p.booking_id, p.amount_paise, p.status, p.rzp_payment_id, p.needs_review, b.code
       from payments p join bookings b on b.id = p.booking_id
       where p.rzp_order_id = ${payment.order_id ?? ""}
       for update of p`;
@@ -122,9 +125,8 @@ export async function recordPayment(payment: RazorpayPayment): Promise<{ outcome
 
     if (payment.status === "failed" || payment.status === "created") {
       // Never let a failed retry overwrite a successful payment on the same order.
-      if (payment.status === "failed") {
-        await tx`update payments set status = 'failed', raw = ${tx.json(payment)}
-                 where id = ${row.id} and status in ('created', 'failed')`;
+      if (payment.status === "failed" && nextPaymentStatus(row.status, "failed")) {
+        await tx`update payments set status = 'failed', raw = ${tx.json(payment)} where id = ${row.id}`;
       }
       return result(payment.status === "failed" ? "failed" : "processing");
     }
@@ -132,12 +134,28 @@ export async function recordPayment(payment: RazorpayPayment): Promise<{ outcome
     // A payment event that arrives after a refund. Refunds are tracked in server/refunds.ts; nothing to record here.
     if (payment.status === "refunded") return result("needs_review");
 
-    // authorized or captured: record it, never downgrading captured → authorized.
+    if (isSettled(row.status)) {
+      // The same capture again (verify, payment.captured and order.paid all report it): it was
+      // handled the first time. Don't re-judge it against the booking's current state, or a
+      // booking cancelled or marked no-show since would raise a false "refund this" alert.
+      if (row.rzp_payment_id === payment.id) return result(row.needs_review ? "needs_review" : "already_confirmed");
+      // A second payment on an order that was already paid.
+      await tx`update payments set needs_review = true where id = ${row.id}`;
+      await onPaymentNeedsReview(
+        tx,
+        row.booking_id,
+        payment.id,
+        payment.status === "captured"
+          ? `The customer paid twice: a second payment (${payment.id}, ${formatINR(payment.amount)}) came in after the booking was paid. Refund the extra one from the Razorpay dashboard.`
+          : `A second payment (${payment.id}, ${formatINR(payment.amount)}) was started after the booking was paid. It wasn't captured, so Razorpay releases it back to the customer automatically.`,
+      );
+      return result("needs_review");
+    }
+
+    // authorized or captured, recorded per the payment lifecycle (lib/payment-status.ts).
     await tx`
       update payments
-      set rzp_payment_id = ${payment.id},
-          status = case when status = 'captured' then 'captured' else ${payment.status} end,
-          raw = ${tx.json(payment)}
+      set rzp_payment_id = ${payment.id}, status = ${nextPaymentStatus(row.status, payment.status) ?? row.status}, raw = ${tx.json(payment)}
       where id = ${row.id}`;
 
     if (payment.status !== "captured") return result("processing");
@@ -197,7 +215,9 @@ export async function settlePayment(
   if (opts.expectedOrderId && payment.order_id !== opts.expectedOrderId) {
     return { outcome: "unknown_order", code: null, orderId: payment.order_id ?? null };
   }
-  if (payment.status === "authorized") {
+  // Capture only the order's first payment. A second one stays uncaptured so Razorpay releases it,
+  // instead of charging the customer twice.
+  if (payment.status === "authorized" && !(await paidByAnotherPayment(payment))) {
     try {
       payment = await capturePayment(payment.id, payment.amount);
     } catch (error) {
@@ -208,4 +228,11 @@ export async function settlePayment(
   }
   const { outcome, code } = await recordPayment(payment);
   return { outcome, code, orderId: payment.order_id ?? null };
+}
+
+async function paidByAnotherPayment(payment: RazorpayPayment): Promise<boolean> {
+  if (!payment.order_id) return false;
+  const [row] = await sql<{ status: PaymentStatus; rzp_payment_id: string | null }[]>`
+    select status, rzp_payment_id from payments where rzp_order_id = ${payment.order_id}`;
+  return Boolean(row && isSettled(row.status) && row.rzp_payment_id !== payment.id);
 }
