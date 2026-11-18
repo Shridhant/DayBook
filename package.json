@@ -17,6 +17,7 @@
     "db:new": "dbmate new",
     "db:seed": "node --env-file=.env.local scripts/db-seed.mjs",
     "db:demo": "node --env-file=.env.local scripts/demo-data.mjs",
+    "brand:icons": "node scripts/brand-icons.mjs",
     "db:test:prepare": "dbmate --env-file .env.local -e DATABASE_MIGRATION_URL_TEST --no-dump-schema up",
     "auth:schema": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/auth-schema-sql.mts",
     "admin:create-user": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/create-user.mts"

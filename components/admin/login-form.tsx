@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandMark } from "@/components/brand-mark";
 import { motion } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -58,9 +59,7 @@ export function LoginForm({ brand }: { brand: string }) {
   return (
     <motion.div className="card w-full max-w-sm rounded-2xl p-6 shadow-[0_1px_2px_rgb(0_0_0/.04)]" {...m}>
       <div className="flex items-center gap-2.5">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-ink text-[13px] font-semibold text-surface">
-          {brand.slice(0, 1)}
-        </span>
+        <BrandMark size={32} />
         <div className="leading-tight">
           <p className="text-[15px] font-semibold">{brand}</p>
           <p className="text-[11px] text-muted">Admin</p>

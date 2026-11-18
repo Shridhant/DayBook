@@ -20,6 +20,12 @@ type SiteConfig = {
     /** Pale tint for selected rows and soft backgrounds. */
     accentSoft: Hex;
   };
+  /**
+   * Logo files, made from the salon's logo by `npm run brand:icons` (which also writes the favicon).
+   * `wordmark` is shown in the site header; `mark` is the square tile in the admin. null shows the
+   * name (header) or its first letter (admin) instead.
+   */
+  logo: { wordmark: { src: string; width: number; height: number }; mark: string } | null;
   /** Hero headline: the `highlight` word is shown in the brand colour. */
   headline: { before: string; highlight: string; after: string };
   /** Wide hero photo in public/ (landscape, ~1700px wide). null uses the first featured portfolio photo. */
@@ -40,6 +46,7 @@ type SiteConfig = {
 export const site: SiteConfig = {
   name: "Daybook",
   colors: { brand: "#FF00AA", accent: "#D6008F", accentDeep: "#B8007B", accentSoft: "#FFE6F5" },
+  logo: { wordmark: { src: "/site/logo.png", width: 640, height: 266 }, mark: "/site/logo-mark.png" },
   headline: { before: "Nails, done", highlight: "beautifully", after: "." },
   heroImage: { src: "/site/banner.png", alt: "A client painting her nails on a pink bed, surrounded by beauty products" },
   /** Registered business name for the policy pages (Razorpay checks it). Falls back to `name`. */

@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu as MenuIcon } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -30,9 +31,21 @@ export function SiteHeader() {
       <div className="mx-auto flex h-14 w-full max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6 md:h-16 lg:px-8">
         <Link
           href="/"
-          className="-ml-1 rounded-full px-1 text-[18px] font-semibold tracking-[-0.02em] outline-none focus-visible:ring-3 focus-visible:ring-brand/30"
+          className="-ml-1 flex items-center rounded-full px-1 text-[18px] font-semibold tracking-[-0.02em] outline-none focus-visible:ring-3 focus-visible:ring-brand/30"
         >
-          {site.name}
+          {site.logo ? (
+            // Above the fold on every page: load it straight away.
+            <Image
+              src={site.logo.wordmark.src}
+              alt={site.name}
+              width={site.logo.wordmark.width}
+              height={site.logo.wordmark.height}
+              loading="eager"
+              className="h-9 w-auto md:h-10"
+            />
+          ) : (
+            site.name
+          )}
         </Link>
 
         <nav aria-label="Main" className="hidden md:block">

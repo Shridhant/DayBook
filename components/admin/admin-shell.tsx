@@ -29,6 +29,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useId, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/brand-mark";
 import { DemoBanner } from "@/components/demo-banner";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/dialog";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
@@ -308,9 +309,7 @@ function SidebarBody({
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 shrink-0 items-center gap-2.5 px-4">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-ink text-[13px] font-semibold text-surface">
-          {brand.slice(0, 1)}
-        </span>
+        <BrandMark size={28} />
         <div className={cn("min-w-0 flex-1 leading-tight", FADE)}>
           <p className="truncate text-[13px] font-semibold">{brand}</p>
           <p className="truncate text-[11px] text-muted">Admin</p>
