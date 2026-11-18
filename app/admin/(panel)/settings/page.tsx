@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   await requirePageUser(OWNER_ONLY);
   return (
     <>
-      <PageHeader title="Settings" description="Booking rules and opening hours" />
+      <PageHeader title="Settings" description="How customers book and pay. Click a row to change it." />
       <PageBody>
         <SettingsForm settings={await getSettingsAdmin()} />
       </PageBody>
