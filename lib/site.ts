@@ -44,8 +44,9 @@ type SiteConfig = {
 };
 
 export const site: SiteConfig = {
-  name: "Daybook",
-  colors: { brand: "#FF00AA", accent: "#D6008F", accentDeep: "#B8007B", accentSoft: "#FFE6F5" },
+  name: "Nails by Pretty",
+  // brand is the logo's own pink; accent is a deeper shade so white button text stays readable (5:1).
+  colors: { brand: "#F12B67", accent: "#D81B55", accentDeep: "#B00E40", accentSoft: "#FFE8EF" },
   logo: { wordmark: { src: "/site/logo.png", width: 640, height: 266 }, mark: "/site/logo-mark.png" },
   headline: { before: "Nails, done", highlight: "beautifully", after: "." },
   heroImage: { src: "/site/banner.png", alt: "A client painting her nails on a pink bed, surrounded by beauty products" },
