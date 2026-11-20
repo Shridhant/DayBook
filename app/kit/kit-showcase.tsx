@@ -20,10 +20,11 @@ import { Avatar } from "@/components/ui/avatar";
 import { InstagramIcon } from "@/components/ui/brand-icons";
 import { Chip, Code, Count, StatusPill } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar, DateField } from "@/components/ui/calendar";
 import { Card, EmptyState, Section, Stat } from "@/components/ui/card";
 import { DateTile, FilterChip, OptionCard, SlotChip } from "@/components/ui/choice";
 import { ConfirmDialog, Dialog, DialogClose, DialogContent, DialogTrigger, Sheet, SheetContent, SheetTrigger } from "@/components/ui/dialog";
-import { Field, Input, NativeSelect, Textarea } from "@/components/ui/input";
+import { Field, Input, Textarea } from "@/components/ui/input";
 import {
   Menu,
   MenuCheckboxItem,
@@ -35,6 +36,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  Select,
 } from "@/components/ui/menu";
 import { Accent, DisplayTitle, Eyebrow, Lead, PageSection, SectionHeader } from "@/components/ui/page-section";
 import { Rating } from "@/components/ui/rating";
@@ -397,13 +399,20 @@ function AppKit({ dark, onToggleDark }: { dark: boolean; onToggleDark: () => voi
             </Card>
           </Group>
 
+          <Section title="Calendar and date field" description="Inline month view, and the popover field used for every date input. Sundays are blocked here as an example.">
+            <KitCalendar />
+          </Section>
+
           <Section icon={IndianRupee} title="Booking amount" description="What customers pay online to confirm a slot.">
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label="Rule">
-                <NativeSelect defaultValue="fixed">
-                  <option value="fixed">Fixed amount</option>
-                  <option value="percent">Percentage of total</option>
-                </NativeSelect>
+                <Select
+                  defaultValue="fixed"
+                  options={[
+                    { value: "fixed", label: "Fixed amount" },
+                    { value: "percent", label: "Percentage of total", hint: "Rounded to the nearest ₹10" },
+                  ]}
+                />
               </Field>
               <Field label="Amount (₹)" hint="Applied unless a service overrides it">
                 <Input inputMode="numeric" defaultValue="500" />
@@ -542,5 +551,21 @@ export function KitShowcase() {
         <AppKit dark={dark} onToggleDark={() => setDark((d) => !d)} />
       </main>
     </TooltipProvider>
+  );
+}
+
+function KitCalendar() {
+  const [day, setDay] = useState<string | null>(null);
+  const [field, setField] = useState<string>("");
+  return (
+    <div className="flex flex-wrap items-start gap-8">
+      <Calendar value={day} onChange={setDay} disabledDates={(d) => new Date(`${d}T00:00:00Z`).getUTCDay() === 0} showToday />
+      <div className="w-60 space-y-3">
+        <Field label="Date">
+          <DateField value={field} onChange={setField} clearable />
+        </Field>
+        <p className="text-xs text-muted">Picked inline: {day ?? "nothing yet"}</p>
+      </div>
+    </div>
   );
 }

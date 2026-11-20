@@ -186,8 +186,11 @@ describe("report breakdowns", () => {
       [ids.catB, 2, 50000],
     ]);
     expect(r.artists).toEqual([
-      { id: ids.staff, name: "Rep Artist", bookings: 4, completed: 2, noShows: 1, revenuePaise: 250000, bookedMinutes: 240, capacityMinutes: 840, clients: 2 },
+      { id: ids.staff, name: "Rep Artist", photoPath: null, bookings: 4, completed: 2, noShows: 1, revenuePaise: 250000, bookedMinutes: 240, capacityMinutes: 840, clients: 2 },
     ]);
+    // The dotted comparison line covers the period just before, bucketed the same way.
+    expect(r.previousTrend?.length).toBeGreaterThan(0);
+    expect(r.previousTrend?.every((p) => p.key < r.trend[0].key)).toBe(true);
   });
 
   it("ranks top clients by spend and lists lapsed regulars with nothing booked", async () => {

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/calendar";
 import { addDays, isDateKey } from "@/lib/time";
 
 /** Previous / today / next and a date picker, all driven by ?date= so views are linkable. */
@@ -25,12 +26,13 @@ export function DayNav({ date, today, basePath }: { date: string; today: string;
           <ChevronRight />
         </Link>
       </Button>
-      <input
-        type="date"
+      <DateField
+        size="sm"
+        align="end"
         aria-label="Pick a date"
         value={date}
-        onChange={(e) => isDateKey(e.target.value) && router.push(href(e.target.value))}
-        className="h-7 rounded-lg border border-line bg-surface px-2 text-xs text-ink outline-none focus:border-accent focus:ring-3 focus:ring-accent/15"
+        onChange={(d) => isDateKey(d) && router.push(href(d))}
+        className="w-40"
       />
     </div>
   );

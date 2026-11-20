@@ -5,7 +5,8 @@ import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Field, Input, NativeSelect } from "@/components/ui/input";
+import { Field, Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/menu";
 import { OptionCard, SlotChip } from "@/components/ui/choice";
 import { Switch } from "@/components/ui/toggle";
 import { MAX_CUSTOMER_RESCHEDULES } from "@/lib/customer-changes";
@@ -269,13 +270,14 @@ function CancelDialog({ settings, onDone }: { settings: AdminSettings; onDone: (
       onDone={onDone}
     >
       <Field label="Free until">
-        <NativeSelect value={hours} onChange={(e) => setHours(Number(e.target.value))}>
-          {withCurrent([0, 2, 4, 6, 12, 24, 48, 72], settings.cancelWindowHours).map((h) => (
-            <option key={h} value={h}>
-              {h === 0 ? "The appointment starts" : `${plural(h, "hour")} before`}
-            </option>
-          ))}
-        </NativeSelect>
+        <Select
+          value={String(hours)}
+          onValueChange={(v) => setHours(Number(v))}
+          options={withCurrent([0, 2, 4, 6, 12, 24, 48, 72], settings.cancelWindowHours).map((h) => ({
+            value: String(h),
+            label: h === 0 ? "The appointment starts" : `${plural(h, "hour")} before`,
+          }))}
+        />
       </Field>
       <ul className="space-y-2 rounded-xl bg-hover p-3 text-[13px]">
         {hours === 0 ? (

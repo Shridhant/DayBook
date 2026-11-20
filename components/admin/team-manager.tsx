@@ -6,8 +6,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { Chip } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Field, Input, NativeSelect } from "@/components/ui/input";
-import { MenuItem } from "@/components/ui/menu";
+import { Field, Input } from "@/components/ui/input";
+import { MenuItem, Select, type SelectOption } from "@/components/ui/menu";
 import { useToast } from "@/components/ui/toast";
 import { formatDate, formatInstantTime, toIst } from "@/lib/time";
 import type { StaffListItem } from "@/server/admin/staff-admin";
@@ -21,6 +21,7 @@ const ROLE_HINT = {
   staff: "Their own schedule and leave requests at /staff. Link them to their artist profile. No admin access.",
 } as const;
 type Role = keyof typeof ROLE;
+const ROLE_OPTIONS: SelectOption<Role>[] = (["receptionist", "owner", "staff"] as const).map((r) => ({ value: r, label: ROLE[r] }));
 
 /** Readable random password: no look-alike characters. Generated in the browser. */
 function generatePassword(length = 14) {
@@ -202,22 +203,15 @@ export function TeamManager({ team, staff, currentUserId }: { team: TeamMember[]
                 <Input type="email" value={adding.email} autoComplete="off" onChange={(e) => setAdding({ ...adding, email: e.target.value })} />
               </Field>
               <Field label="Role" hint={ROLE_HINT[adding.role]} className="sm:col-span-2">
-                <NativeSelect value={adding.role} onChange={(e) => setAdding({ ...adding, role: e.target.value as Role })}>
-                  <option value="receptionist">Front desk</option>
-                  <option value="owner">Owner</option>
-                  <option value="staff">Artist</option>
-                </NativeSelect>
+                <Select<Role> value={adding.role} onValueChange={(role) => setAdding({ ...adding, role })} options={ROLE_OPTIONS} />
               </Field>
               {adding.role === "staff" && (
                 <Field label="Artist profile" className="sm:col-span-2">
-                  <NativeSelect value={adding.staffId} onChange={(e) => setAdding({ ...adding, staffId: e.target.value })}>
-                    <option value="">Not linked yet</option>
-                    {freeStaff().map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
+                  <Select
+                    value={adding.staffId}
+                    onValueChange={(staffId) => setAdding({ ...adding, staffId })}
+                    options={[{ value: "", label: "Not linked yet" }, ...freeStaff().map((s) => ({ value: s.id, label: s.name }))]}
+                  />
                 </Field>
               )}
               <Field label="Starting password" hint="At least 10 characters. Copy it before saving." className="sm:col-span-2">
@@ -263,22 +257,15 @@ export function TeamManager({ team, staff, currentUserId }: { team: TeamMember[]
             }
           >
             <Field label="Role" hint={ROLE_HINT[roleFor.role]}>
-              <NativeSelect value={roleFor.role} onChange={(e) => setRoleFor({ ...roleFor, role: e.target.value as Role })}>
-                <option value="receptionist">Front desk</option>
-                <option value="owner">Owner</option>
-                <option value="staff">Artist</option>
-              </NativeSelect>
+              <Select<Role> value={roleFor.role} onValueChange={(role) => setRoleFor({ ...roleFor, role })} options={ROLE_OPTIONS} />
             </Field>
             {roleFor.role === "staff" && (
               <Field label="Artist profile">
-                <NativeSelect value={roleFor.staffId} onChange={(e) => setRoleFor({ ...roleFor, staffId: e.target.value })}>
-                  <option value="">Not linked yet</option>
-                  {freeStaff(roleFor.member.staffId).map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </NativeSelect>
+                <Select
+                  value={roleFor.staffId}
+                  onValueChange={(staffId) => setRoleFor({ ...roleFor, staffId })}
+                  options={[{ value: "", label: "Not linked yet" }, ...freeStaff(roleFor.member.staffId).map((s) => ({ value: s.id, label: s.name }))]}
+                />
               </Field>
             )}
             {error && <p className="text-xs text-danger">{error}</p>}

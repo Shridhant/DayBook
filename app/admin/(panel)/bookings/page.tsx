@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageBody, PageHeader } from "@/components/admin/admin-shell";
 import { BookingsTable } from "@/components/admin/bookings-table";
+import { DateField } from "@/components/ui/calendar";
 import { STATUS_LABEL } from "@/components/admin/booking-ui";
 import { Button } from "@/components/ui/button";
-import { Input, NativeSelect } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/menu";
 import type { BookingStatus } from "@/lib/booking-status";
 import { isDateKey } from "@/lib/time";
 import { requirePageUser } from "@/server/admin/auth";
@@ -60,24 +62,19 @@ export default async function BookingsPage({ searchParams }: PageProps<"/admin/b
       <PageBody>
         <form method="get" className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))_auto]">
           <Input name="q" defaultValue={filters.q} placeholder="Name, phone or booking code" aria-label="Search" type="search" />
-          <NativeSelect name="status" defaultValue={filters.status ?? ""} aria-label="Status">
-            <option value="">All statuses</option>
-            <option value="active">Upcoming (confirmed + awaiting payment)</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </option>
-            ))}
-          </NativeSelect>
-          <NativeSelect name="sort" defaultValue={filters.sort} aria-label="Sort">
-            {BOOKING_SORTS.map((s) => (
-              <option key={s} value={s}>
-                {SORT_LABEL[s]}
-              </option>
-            ))}
-          </NativeSelect>
-          <Input name="from" type="date" defaultValue={filters.from} aria-label="From date" />
-          <Input name="to" type="date" defaultValue={filters.to} aria-label="To date" />
+          <Select
+            name="status"
+            defaultValue={filters.status ?? ""}
+            aria-label="Status"
+            options={[
+              { value: "", label: "All statuses" },
+              { value: "active", label: "Upcoming", hint: "Confirmed + awaiting payment" },
+              ...STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] })),
+            ]}
+          />
+          <Select name="sort" defaultValue={filters.sort} aria-label="Sort" options={BOOKING_SORTS.map((s) => ({ value: s, label: SORT_LABEL[s] }))} />
+          <DateField name="from" defaultValue={filters.from ?? ""} aria-label="From date" placeholder="From date" clearable />
+          <DateField name="to" defaultValue={filters.to ?? ""} aria-label="To date" placeholder="To date" clearable />
           <div className="flex gap-1.5">
             <Button type="submit" size="md">
               Filter

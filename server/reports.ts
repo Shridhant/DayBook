@@ -4,6 +4,7 @@ import {
   bucketKeys,
   pickBucket,
   comparisonRanges,
+  previousRange,
   type Bucket,
   type DateRange,
   type ReportSource,
@@ -56,6 +57,7 @@ export type CategoryRow = { id: string; name: string; bookings: number; revenueP
 export type ArtistRow = {
   id: string;
   name: string;
+  photoPath: string | null;
   bookings: number;
   completed: number;
   noShows: number;
@@ -74,6 +76,8 @@ export type Report = {
   /** What the KPI deltas compare (see comparisonRanges); null for a period entirely ahead. */
   comparison: { current: ReportSummary; previous: ReportSummary; currentRange: DateRange; previousRange: DateRange } | null;
   trend: TrendPoint[];
+  /** The same buckets for the period before (previousRange), for the dotted comparison line; null for a period entirely ahead. */
+  previousTrend: TrendPoint[] | null;
   channels: ChannelRow[];
   leadTime: LeadTimeRow[];
   heatmap: HeatCell[];
@@ -216,16 +220,16 @@ async function capacityByArtist(f: ReportFilters, range: DateRange): Promise<Map
   return new Map(rows.map((r) => [r.staff_id, Math.max(0, Math.round(r.minutes))]));
 }
 
-async function trendFor(f: ReportFilters, bucket: Bucket, now: Date): Promise<TrendPoint[]> {
+async function trendFor(f: ReportFilters, bucket: Bucket, now: Date, range: DateRange = f): Promise<TrendPoint[]> {
   const rows = await sql<{ key: string; revenue: number; upcoming: number; bookings: number }[]>`
-    with b as (${scoped(f, f)})
+    with b as (${scoped(f, range)})
     select to_char(date_trunc(${bucket}, b.starts_at at time zone 'Asia/Kolkata'), 'YYYY-MM-DD') as key,
       coalesce(sum(b.value) filter (where b.status = 'completed'), 0)::float8 as revenue,
       coalesce(sum(b.value) filter (where b.status = 'confirmed' and b.starts_at >= ${now}), 0)::float8 as upcoming,
       count(*) filter (where b.status in ${ACTIVE})::int as bookings
     from b group by 1`;
   const byKey = new Map(rows.map((r) => [r.key, r]));
-  return bucketKeys(f, bucket).map((key) => {
+  return bucketKeys(range, bucket).map((key) => {
     const r = byKey.get(key);
     return { key, revenuePaise: r?.revenue ?? 0, upcomingPaise: r?.upcoming ?? 0, bookings: r?.bookings ?? 0 };
   });
@@ -304,9 +308,9 @@ async function categoriesFor(f: ReportFilters): Promise<CategoryRow[]> {
 
 async function artistsFor(f: ReportFilters): Promise<ArtistRow[]> {
   const [rows, capacity] = await Promise.all([
-    sql<{ id: string; name: string; active: boolean; bookings: number; completed: number; no_shows: number; revenue: number; minutes: number; clients: number }[]>`
+    sql<{ id: string; name: string; photo_path: string | null; active: boolean; bookings: number; completed: number; no_shows: number; revenue: number; minutes: number; clients: number }[]>`
       with b as (${scoped(f, f)})
-      select st.id, st.name, st.active,
+      select st.id, st.name, st.photo_path, st.active,
         count(b.id) filter (where b.status in ${ACTIVE})::int as bookings,
         count(b.id) filter (where b.status = 'completed')::int as completed,
         count(b.id) filter (where b.status = 'no_show')::int as no_shows,
@@ -316,7 +320,7 @@ async function artistsFor(f: ReportFilters): Promise<ArtistRow[]> {
       from staff st
       left join b on b.staff_id = st.id
       ${f.staffId ? sql`where st.id = ${f.staffId}` : sql``}
-      group by st.id, st.name, st.active, st.sort_order
+      group by st.id, st.name, st.photo_path, st.active, st.sort_order
       order by revenue desc, st.sort_order`,
     capacityByArtist(f, f),
   ]);
@@ -326,6 +330,7 @@ async function artistsFor(f: ReportFilters): Promise<ArtistRow[]> {
     .map((r) => ({
       id: r.id,
       name: r.name,
+      photoPath: r.photo_path,
       bookings: r.bookings,
       completed: r.completed,
       noShows: r.no_shows,
@@ -373,12 +378,13 @@ export async function getReport(filters: ReportFilters, now: Date = new Date()):
   const bucket = pickBucket(filters);
   const ranges = comparisonRanges(filters, istToday(now));
   const sameAsShown = ranges && ranges.current.from === filters.from && ranges.current.to === filters.to;
-  const [summary, comparedCurrent, comparedPrevious, trend, channels, leadTime, heatmap, services, categories, artists, topClients, winBack] =
+  const [summary, comparedCurrent, comparedPrevious, trend, previousTrend, channels, leadTime, heatmap, services, categories, artists, topClients, winBack] =
     await Promise.all([
       summaryFor(filters, filters, now),
       ranges && !sameAsShown ? summaryFor(filters, ranges.current, now) : null,
       ranges ? summaryFor(filters, ranges.previous, now) : null,
       trendFor(filters, bucket, now),
+      ranges ? trendFor(filters, bucket, now, previousRange(filters)) : null,
       channelsFor(filters),
       leadTimeFor(filters),
       heatmapFor(filters),
@@ -392,7 +398,7 @@ export async function getReport(filters: ReportFilters, now: Date = new Date()):
     ranges && comparedPrevious
       ? { current: comparedCurrent ?? summary, previous: comparedPrevious, currentRange: ranges.current, previousRange: ranges.previous }
       : null;
-  return { filters, bucket, summary, comparison, trend, channels, leadTime, heatmap, services, categories, artists, topClients, winBack };
+  return { filters, bucket, summary, comparison, trend, previousTrend, channels, leadTime, heatmap, services, categories, artists, topClients, winBack };
 }
 
 /**

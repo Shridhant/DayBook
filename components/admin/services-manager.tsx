@@ -7,7 +7,8 @@ import { Chip } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Section } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Field, Input, NativeSelect, Textarea } from "@/components/ui/input";
+import { Field, Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/menu";
 import { Checkbox, Switch } from "@/components/ui/toggle";
 import { formatINR, paiseToRupeesInput } from "@/lib/money";
 import { formatDuration } from "@/lib/time";
@@ -232,22 +233,18 @@ export function ServicesManager({
                 <Input value={editing.form.name} maxLength={80} onChange={(e) => patch({ name: e.target.value })} />
               </Field>
               <Field label="Category">
-                <NativeSelect value={editing.form.categoryId} onChange={(e) => patch({ categoryId: e.target.value })}>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </NativeSelect>
+                <Select
+                  value={editing.form.categoryId}
+                  onValueChange={(v) => patch({ categoryId: v })}
+                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                />
               </Field>
               <Field label="Duration">
-                <NativeSelect value={editing.form.durationMin} onChange={(e) => patch({ durationMin: Number(e.target.value) })}>
-                  {[...new Set([...DURATIONS, editing.form.durationMin])].sort((a, b) => a - b).map((m) => (
-                    <option key={m} value={m}>
-                      {formatDuration(m)}
-                    </option>
-                  ))}
-                </NativeSelect>
+                <Select
+                  value={String(editing.form.durationMin)}
+                  onValueChange={(v) => patch({ durationMin: Number(v) })}
+                  options={[...new Set([...DURATIONS, editing.form.durationMin])].sort((a, b) => a - b).map((m) => ({ value: String(m), label: formatDuration(m) }))}
+                />
               </Field>
               <Field label="Price (₹)" error={error?.field === "price" ? error.message : undefined}>
                 <Input inputMode="decimal" value={editing.form.price} onChange={(e) => patch({ price: e.target.value })} placeholder="1200" />

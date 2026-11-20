@@ -6,6 +6,7 @@ import { Chip } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Section } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/calendar";
 import { formatDate, istToday } from "@/lib/time";
 import { useIsClient } from "@/lib/use-is-client";
 import type { AdminClosure } from "@/server/admin/settings-admin";
@@ -74,7 +75,7 @@ export function ClosuresManager({ closures }: { closures: AdminClosure[] }) {
       <Section icon={CalendarOff} title="Close a day" className="h-fit">
         <div className="space-y-3">
           <Field label="Date">
-            <Input type="date" value={date} min={today ?? undefined} onChange={(e) => setDate(e.target.value)} />
+            <DateField value={date} minDate={today ?? undefined} onChange={setDate} />
           </Field>
           <Field label="Reason (optional)" hint="Shown on the booking page">
             <Input value={reason} maxLength={120} placeholder="Diwali" onChange={(e) => setReason(e.target.value)} />

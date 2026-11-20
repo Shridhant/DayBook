@@ -7,7 +7,8 @@ import { Chip } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Field, Input, NativeSelect, Textarea } from "@/components/ui/input";
+import { Field, Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/menu";
 import { Rating } from "@/components/ui/rating";
 import { Checkbox, Switch } from "@/components/ui/toggle";
 import { parseInstagramUrl } from "@/lib/instagram";
@@ -176,14 +177,11 @@ export function PortfolioManager({ items, categories }: { items: AdminPortfolioI
                 <Input value={editing.form.caption} maxLength={80} onChange={(e) => patch({ caption: e.target.value })} />
               </Field>
               <Field label="Category">
-                <NativeSelect value={editing.form.categoryId} onChange={(e) => patch({ categoryId: e.target.value })}>
-                  <option value="">None</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </NativeSelect>
+                <Select
+                  value={editing.form.categoryId}
+                  onValueChange={(categoryId) => patch({ categoryId })}
+                  options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+                />
               </Field>
               <div className="flex flex-wrap gap-4">
                 <label className="flex items-center gap-2">
@@ -319,11 +317,15 @@ export function InstagramManager({ posts }: { posts: AdminInstagramPost[] }) {
                 <Input value={editing.form.caption} maxLength={120} onChange={(e) => patch({ caption: e.target.value })} />
               </Field>
               <Field label="Show in">
-                <NativeSelect value={editing.form.placement} onChange={(e) => patch({ placement: e.target.value as InstagramForm["placement"] })}>
-                  <option value="portfolio">Instagram section</option>
-                  <option value="reviews">Reviews section</option>
-                  <option value="hero">Hero</option>
-                </NativeSelect>
+                <Select<InstagramForm["placement"]>
+                  value={editing.form.placement}
+                  onValueChange={(placement) => patch({ placement })}
+                  options={[
+                    { value: "portfolio", label: "Instagram section" },
+                    { value: "reviews", label: "Reviews section" },
+                    { value: "hero", label: "Hero" },
+                  ]}
+                />
               </Field>
               <label className="flex items-center gap-2">
                 <Switch checked={editing.form.active} onCheckedChange={(v) => patch({ active: v })} /> Visible
@@ -417,13 +419,12 @@ export function TestimonialsManager({ items }: { items: AdminTestimonial[] }) {
             </Field>
             <div className="flex flex-wrap items-center gap-4">
               <Field label="Stars">
-                <NativeSelect value={editing.form.rating} onChange={(e) => patch({ rating: Number(e.target.value) })} className="w-24">
-                  {[5, 4, 3, 2, 1].map((n) => (
-                    <option key={n} value={n}>
-                      {n} ★
-                    </option>
-                  ))}
-                </NativeSelect>
+                <Select
+                  value={String(editing.form.rating)}
+                  onValueChange={(v) => patch({ rating: Number(v) })}
+                  options={[5, 4, 3, 2, 1].map((n) => ({ value: String(n), label: `${n} ★`, textValue: String(n) }))}
+                  className="w-24"
+                />
               </Field>
               <label className="mt-4 flex items-center gap-2">
                 <Switch checked={editing.form.visible} onCheckedChange={(v) => patch({ visible: v })} /> Visible

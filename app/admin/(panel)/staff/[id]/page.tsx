@@ -17,7 +17,7 @@ export default async function StaffDetailPage({ params }: PageProps<"/admin/staf
   if (!staff) notFound();
   return (
     <>
-      <PageHeader title={staff.name} description={staff.active ? "Active" : "Inactive: hidden from booking"} />
+      <PageHeader title="Artist" description={staff.name} />
       <PageBody>
         <StaffEditor staff={staff} categories={catalog.categories} services={catalog.services} canEdit={user.role === "owner"} />
       </PageBody>

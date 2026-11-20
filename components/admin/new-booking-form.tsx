@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/calendar";
 import { Section } from "@/components/ui/card";
-import { Field, Input, NativeSelect, Textarea } from "@/components/ui/input";
+import { Field, Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
@@ -161,28 +163,22 @@ export function NewBookingForm({ catalog, initialDate }: { catalog: Catalog; ini
         <Section icon={CalendarClock} title="When">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Artist">
-              <NativeSelect
+              <Select
                 value={effectiveStaff}
-                onChange={(e) => {
-                  setStaffId(e.target.value);
+                onValueChange={(v) => {
+                  setStaffId(v);
                   setSlot(null);
                 }}
                 disabled={!serviceIds.length}
-              >
-                <option value="">Any available</option>
-                {qualified.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </NativeSelect>
+                options={[{ value: "", label: "Any available" }, ...qualified.map((s) => ({ value: s.id, label: s.name }))]}
+              />
             </Field>
             <Field label="Date">
-              <Input
-                type="date"
+              <DateField
                 value={date}
-                onChange={(e) => {
-                  setDate(e.target.value);
+                onChange={(d) => {
+                  if (!d) return;
+                  setDate(d);
                   setSlot(null);
                 }}
               />

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/toggle";
 import { formatLeaveRange } from "@/lib/time";
 import type { LeaveStatus, OwnLeave } from "@/server/staff-portal";
@@ -66,7 +67,7 @@ function RequestForm({ today }: { today: string }) {
     <Section icon={CalendarPlus} title="Request leave">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={partDay ? "Date" : "From"}>
-          <Input type="date" className="h-11" min={today} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <DateField size="touch" minDate={today} value={startDate} onChange={setStartDate} />
         </Field>
         {partDay ? (
           <div className="flex items-end gap-2">
@@ -79,7 +80,7 @@ function RequestForm({ today }: { today: string }) {
           </div>
         ) : (
           <Field label="To (inclusive)" hint="Leave empty for one day">
-            <Input type="date" className="h-11" value={endDate} min={startDate || today} onChange={(e) => setEndDate(e.target.value)} />
+            <DateField size="touch" value={endDate} minDate={startDate || today} onChange={setEndDate} placeholder="Same day" clearable />
           </Field>
         )}
         <Field label="Reason (optional)" className="sm:col-span-2">
